@@ -5,6 +5,7 @@ Provides JWT token validation and role-based access control
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthCredentials
+from app.core.config import settings
 import jwt
 from datetime import datetime, timedelta
 import logging
@@ -13,9 +14,9 @@ logger = logging.getLogger(__name__)
 
 security = HTTPBearer()
 
-# Secret key for JWT (should be from config in production)
-SECRET_KEY = "your-secret-key-change-in-production"
-ALGORITHM = "HS256"
+# Load JWT configuration from settings
+SECRET_KEY = settings.JWT_SECRET
+ALGORITHM = settings.JWT_ALGORITHM
 ADMIN_ROLE = "admin"
 USER_ROLE = "user"
 
