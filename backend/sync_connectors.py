@@ -89,7 +89,6 @@ def _mask_sensitive_log(text: str) -> str:
 def convert_html_to_markdown(html_text: str) -> str:
     """
     Helper that executes structural HTML to Markdown parsing via html2text.
-    Replaces custom HTMLToMarkdownParser to resolve Issues 1.1, 1.2, 1.3, & 1.4 (Data Loss).
     Preserves tables, lists, code blocks, macros, and images perfectly.
     """
     if not html_text:
@@ -186,7 +185,7 @@ def sync_confluence_page(page_id: str):
         logger.error("Confluence configurations (URL/PAT) are missing from .env!")
         return False
 
-    # Issues 10.1 & 10.2 Fix: Expand restrictions.read and version.by for security and authorship metadata
+    # Expand fields for security and authorship metadata
     api_endpoint = f"{url}/wiki/rest/api/content/{page_id}?expand=body.storage,version,space,restrictions.read.restrictions.user,version.by"
     logger.info(f"Initiating live Confluence sync for Page ID [{page_id}]...")
 
