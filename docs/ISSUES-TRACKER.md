@@ -8,14 +8,14 @@
 
 ## SUMMARY
 
-Total Issues Found: **15 CRITICAL + HIGH PRIORITY BUGS**
+Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS**
 
 | Category | Count | Status |
 |----------|-------|--------|
 | Error Handling | 6 issues | 🔴 CRITICAL |
-| UI/UX | 7 issues | 🔴 CRITICAL |
+| UI/UX | 8 issues | 🔴 CRITICAL |
 | Missing Features | 2 issues | 🔴 CRITICAL |
-| **TOTAL** | **15** | **DO NOT SHIP** |
+| **TOTAL** | **16** | **DO NOT SHIP** |
 
 ---
 
@@ -306,6 +306,76 @@ Total Issues Found: **15 CRITICAL + HIGH PRIORITY BUGS**
 
 ---
 
+#### ISSUE #14: Chat History Order Reversed When Switching Sessions
+- **Location:** `backend/app/api/websockets.py:83`, `backend/app/services/db_service.py:get_chat_history_for_session()`
+- **Severity:** 🔴 CRITICAL
+- **Description:** Chat messages appear in reverse chronological order when user switches sessions
+- **Current Behavior:**
+  ```
+  User sends: "Hi"
+  Vision: "Hi"
+  User: "How are you"
+  Vision: "Fine"
+  
+  When user navigates to old chat:
+  Vision: Fine           ← Latest first (WRONG)
+  User: How are you
+  Vision: Hi
+  User: Hi              ← Oldest last (WRONG)
+  ```
+- **Root Cause - Code Analysis:**
+  ```python
+  # db_service.py - Returns history in CORRECT order (oldest to newest)
+  def get_chat_history_for_session(...):
+      cursor.execute("""
+          SELECT ... FROM (
+              SELECT ... FROM messages
+              ORDER BY id DESC LIMIT ?
+          ) sub ORDER BY id ASC  # ✓ ASC = correct order
+      """)
+  
+  # websockets.py - REVERSES the already-correct order
+  past_context = db_service.get_chat_history_for_session(...)
+  for msg in reversed(past_context):  # ❌ REVERSES AGAIN!
+      connection_history.append(...)
+  
+  # SystemLog.vue - Displays in received order (reversed)
+  <li v-for="(msg, index) in messages">  # Messages are already reversed
+  ```
+- **Problem:** 
+  - Backend reverses messages for Vertex AI context window (needs newest last)
+  - But SAME reversed list sent to frontend WebSocket
+  - Frontend displays messages in reverse chronological order
+- **Fix Needed:**
+  1. Keep messages in chronological order for WebSocket transmission
+  2. Only reverse for Vertex AI context construction
+  3. Option A: Create separate method `get_chat_history_for_display()` that returns ASC order
+  4. Option B: Don't reverse for WebSocket, only reverse when building Vertex AI context
+- **Implementation:**
+  ```python
+  # BEFORE (wrong):
+  past_context = db_service.get_chat_history_for_session(...)
+  for msg in reversed(past_context):  # Used for both Vertex + WebSocket
+      connection_history.append(...)  # Vertex AI
+  
+  # AFTER (correct):
+  # For Vertex AI context (needs newest last)
+  past_context = db_service.get_chat_history_for_session(...)
+  for msg in reversed(past_context):  # ✓ Reverse only for AI
+      connection_history.append(...)
+  
+  # For WebSocket display (send chronological order)
+  display_history = db_service.get_chat_history_for_session(...)  # Don't reverse
+  # Send to WebSocket in chronological order
+  ```
+- **Test Case:**
+  1. Create new session, send 5 messages
+  2. Switch to another session, then back
+  3. Verify messages appear in chronological order (oldest first, newest last)
+  4. Verify message order is preserved when scrolling
+
+---
+
 ### ========== SECTION 3: MISSING FEATURES ==========
 
 **Status:** ❌ INCOMPLETE IMPLEMENTATION  
@@ -314,7 +384,7 @@ Total Issues Found: **15 CRITICAL + HIGH PRIORITY BUGS**
 
 ---
 
-#### ISSUE #14: Web Search UI Completely Missing
+#### ISSUE #15: Web Search UI Completely Missing
 - **Location:** `frontend/src/views/HomeView.vue`, `frontend/src/components/`
 - **Severity:** 🔴 CRITICAL
 - **Description:** Backend has @web/@internal/@both routing but NO UI
@@ -334,7 +404,7 @@ Total Issues Found: **15 CRITICAL + HIGH PRIORITY BUGS**
 
 ---
 
-#### ISSUE #15: No Sync Status Dashboard
+#### ISSUE #16: No Sync Status Dashboard
 - **Location:** `frontend/src/views/HomeView.vue`
 - **Severity:** 🔴 CRITICAL
 - **Description:** User has NO visibility into sync status
@@ -373,8 +443,9 @@ Total Issues Found: **15 CRITICAL + HIGH PRIORITY BUGS**
 | #11: Memory leak (timer) | 🔴 | 1h | 11 |
 | #12: Missing STREAMING state | 🔴 | 1h | 12 |
 | #13: No real-time processing updates | 🔴 | 4h | 13 |
-| #14: Web search UI missing | 🔴 | 8h | 14 |
-| #15: No sync dashboard | 🔴 | 4h | 15 |
+| #14: Chat history order reversed | 🔴 | 2h | 14 |
+| #15: Web search UI missing | 🔴 | 8h | 15 |
+| #16: No sync dashboard | 🔴 | 4h | 16 |
 
 ---
 
@@ -416,7 +487,7 @@ Total Issues Found: **15 CRITICAL + HIGH PRIORITY BUGS**
 - [ ] E2E tests for UI state transitions
 - [ ] Performance testing (memory leaks)
 
-**Total Effort: 40 hours (5 days)**
+**Total Effort: 42 hours (5 days)**
 
 ---
 
