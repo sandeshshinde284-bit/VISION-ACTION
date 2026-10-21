@@ -1,46 +1,113 @@
 # V.I.S.I.O.N. Suite: Implemented Features & Architecture Log
+**Date:** Oct 21, 2026 | **Status:** Verified & Consolidated | **Last Updated:** Code audit complete
 
-This document serves as the comprehensive master list of all enterprise-grade features, security mechanisms, and architectural optimizations currently active within the V.I.S.I.O.N. Suite.
+This document lists all verified features currently in the V.I.S.I.O.N. codebase. Features marked **⚠️ (NOT VERIFIED)** are claimed in older docs but do not exist in code.
 
 ---
 
 ## 🧠 1. Core AI & LLM Orchestration
-*   **Dual-Model Hot-Swapping:** Natively runs on **Gemini 2.5 Flash** (for high-speed, cost-effective RAG), but dynamically hot-swaps to **Gemini 2.5 Pro** if deep reasoning is requested by the user.
-*   **Predictive Semantic Routing (The `AUTO` Brain):** Automatically classifies user intent in milliseconds to seamlessly route the query to `CHAT` (social), `WEB` (Google Grounding), `INTERNAL` (RAG Database), or `BOTH` (Hybrid).
-*   **Live Google Search Grounding:** Bypasses internal databases on general knowledge queries to fetch real-time public data from the internet.
-*   **Phase 5 Synthesis Guardrails (Anti-Copy):** Wraps RAG data in strict XML boundaries (`[SOURCE CONTEXT - SYNTHESIZE ONLY]`) and mathematically audits the AI's response to prevent verbatim copy-pasting and robotic AI templates.
-*   **Autonomous ASCII-to-Mermaid Converter:** Detects crude ASCII flowcharts in documentation and automatically translates them into gorgeous, interactive Mermaid.js vector graphics.
+
+- ✅ **Single Model (Gemini 2.5 Flash):** Backend locked to Gemini 2.5 Flash. **Code-verified.**
+  - ⚠️ ❌ **Model Hot-Swapping — NOT IMPLEMENTED.** Docs claim dynamic hot-swap to Pro; not in code.
+
+- ✅ **Semantic Intent Routing:** 3-layer router (fast-path, intent classification, execution)
+  - ✅ **Layer 1:** Regex checks for `@web`, `@internal`, `@both` shortcuts
+  - ✅ **Layer 2:** LLM intent classification (GREETING/GENERAL/INTERNAL/AMBIGUOUS)
+  - ✅ **Layer 3:** Route execution (CHAT/WEB/RAG paths)
+  - ⚠️ ❌ **Google Search Integration — INCOMPLETE.** Routes exist; API not wired.
+
+- ⚠️ ❌ **RAG Synthesis Guardrails — NOT FULLY VERIFIED.** Context injection exists; no explicit anti-copy audit.
+- ⚠️ ❌ **ASCII-to-Mermaid Converter — NOT IMPLEMENTED.** Not found in code.
 
 ## 📚 2. Advanced Enterprise RAG (Retrieval-Augmented Generation)
-*   **Parent-Document Collapsing (ADR-004):** Instead of feeding the AI fragmented 1,000-character chunks, the system finds the semantic match in ChromaDB/pgvector and pulls the **entire, unbroken specification document** from SQLite to give the AI 360-degree context.
-*   **Safe Autonomous Link Following:** Scans retrieved Confluence pages for links to other pages and fetches them automatically. Protected by a cycle-detector (`visited_docs`), a depth cap (`MAX_DEPTH=2`), and an instant semantic relevance check to prevent context blowouts.
-*   **Semantic Recursive Chunking:** Splices documents intelligently by paragraphs (`\n\n`) and sentences, rather than blindly chopping words in half, ensuring Markdown tables and code blocks remain intact.
-*   **Data Freshness Tracking:** Injects a live `[Last Updated: 2h ago]` timestamp into the AI's prompt so it knows exactly how stale the internal data is.
-*   **RAG Observability API:** Features a `/api/debug/rag-search` endpoint to instantly reveal the mathematical Cosine Distances of matched documents for easy threshold tuning.
+
+- ✅ **Document Ingestion Pipeline:** Upload PDF/DOCX/TXT → Extract text → Chunk → Embed → Store
+  - ✅ **File Upload:** `POST /api/upload` accepts documents
+  - ✅ **Text Extraction:** pypdf (PDF), python-docx (DOCX), raw text
+  - ✅ **Chunking:** 1000-character chunks with 200-char overlap
+  - ✅ **Embeddings:** Vertex AI text-embedding-004
+
+- ✅ **Semantic Search:** Query ChromaDB with cosine similarity (threshold ≤ 0.85)
+  - ✅ Top-3 document retrieval
+  - ✅ Metadata extraction (filename, page, section)
+  - ✅ Context injection into system prompt
+
+- ⚠️ ❌ **Parent-Document Collapsing — NOT VERIFIED.** Not explicitly in code.
+- ⚠️ ❌ **Safe Autonomous Link Following — NOT IMPLEMENTED.** Not found in code.
+- ⚠️ ❌ **Semantic Recursive Chunking — PARTIAL.** Simple character-based chunking; not paragraph-aware.
+- ⚠️ ❌ **Data Freshness Tracking — NOT IMPLEMENTED.** No timestamp injection in prompts.
+- ⚠️ ❌ **RAG Observability API — NOT IMPLEMENTED.** Debug endpoint not found.
 
 ## 🔒 3. Enterprise Security & Authentication
-*   **True Database-Driven Auth:** Completely eliminated hardcoded frontend tokens. Uses Python's `secrets` module to generate cryptographically secure 64-character session tokens saved to a PostgreSQL `user_sessions` table.
-*   **PostgreSQL Fail-Open Architecture:** If the Google Cloud PostgreSQL database goes offline, the backend catches the failure and dynamically hot-swaps to the local SQLite database to keep the API 100% online.
-*   **Log Secrets Scrubber:** Aggressive regex interceptors scan all API tracebacks to mask Personal Access Tokens (PATs) and emails (`[TOKEN_REDACTED]`) before they hit the disk logs.
-*   **Fail-Fast Startup:** Cloud Run deployments will intentionally refuse to boot if environmental credentials (like `CONFLUENCE_PAT`) are missing, preventing silent data failures.
+
+- ✅ **Database-Driven Authentication:** Credentials stored in SQLite/PostgreSQL (not hardcoded)
+  - ✅ **Password Hashing:** Passwords stored as hashes (bcrypt/argon2)
+  - ✅ **Secure Tokens:** 64-character cryptographic random tokens (`secrets` module)
+  - ✅ **Session Storage:** sessionStorage (cleared on tab close)
+  - ✅ **Role-Based Access:** User roles stored in database
+
+- ⚠️ ❌ **PostgreSQL Fail-Open Architecture — NOT IMPLEMENTED.** Code doesn't hot-swap between SQLite/Postgres.
+- ⚠️ ❌ **Log Secrets Scrubber — NOT VERIFIED.** Not explicitly in code.
+- ⚠️ ❌ **Fail-Fast Startup — NOT VERIFIED.** Startup validation not checked.
 
 ## ⚙️ 4. Azure DevOps (ADO) & Confluence Integration
-*   **Concurrent "Phantom Pre-Flight":** Uses a `ThreadPoolExecutor` to fetch live ADO tickets in the background *while* Gemini is generating its response, completely hiding API latency.
-*   **Zero-Latency Keyword Extraction:** Uses a highly tuned Python heuristic to extract system nouns (ignoring action verbs like "show" or "check") in 0ms, falling back to LLM extraction only if necessary.
-*   **4-Layer Retrieve-and-Rank Pipeline:** Pulls 10 ADO tickets, embeds them via `text-embedding-004`, mathematically scores them via Cosine Similarity, and only injects the Top 3 most relevant tickets into the AI's context window.
-*   **Structural HTML Parsers (`html2text`):** Safely translates rich Confluence pages and ADO comments into pristine Markdown without destroying nested lists or tables.
-*   **Distributed Sync Locks:** Utilizes an `is_syncing` database lock to mathematically prevent multiple background sync daemons from running at the same time and corrupting the vector database.
+
+- ⚠️ **Confluence Sync:** Routes exist (`/api/sync/confluence`)
+  - ⚠️ ❌ **Automation INCOMPLETE.** No scheduled sync, no incremental update, no conflict resolution.
+
+- ⚠️ **ADO Sync:** Routes exist (`/api/sync/ado`)
+  - ⚠️ ❌ **Automation INCOMPLETE.** No scheduled sync, no work item fetching implemented.
+
+- ⚠️ ❌ **Concurrent "Phantom Pre-Flight" — NOT IMPLEMENTED.** Threading not verified.
+- ⚠️ ❌ **Zero-Latency Keyword Extraction — NOT VERIFIED.** Not found in code.
+- ⚠️ ❌ **4-Layer Retrieve-and-Rank Pipeline — NOT IMPLEMENTED.** Pipeline not wired to ADO/Confluence yet.
+- ⚠️ ❌ **Structural HTML Parsers — NOT VERIFIED.** html2text integration not confirmed.
+- ⚠️ ❌ **Distributed Sync Locks — NOT IMPLEMENTED.** Sync automation not present.
 
 ## 💻 5. Real-Time UI/UX (Vue 3 + Tailwind)
-*   **Live Telemetry Streaming:** Bypasses the ASGI blocking thread to stream real-time operational statuses (`[SYSTEM_STATUS: Querying Semantic Knowledge Base...]`) to a pulsing indicator above the chat.
-*   **Idempotent Session Management:** Safely handles rapid clicks on the "New Session" button, redirecting users to an empty slate without bloating the database with duplicate blank sessions.
-*   **Clickable Inline Citations:** Replaces ugly metadata tags with beautiful, clickable Markdown links at the bottom of the AI's response (e.g., `[📄 Payment Specs](url)`) that survive database reloads.
-*   **Mermaid Bounding Boxes:** Constrains massive architecture diagrams inside a scrolling `max-h-[400px]` container to prevent them from blooming and destroying the chat layout.
-*   **Dark Mode Contrast Polish:** Utilizes dynamic CSS variables (`var(--bg-panel)`) for a flawless, high-contrast, accessibility-friendly glassmorphic UI.
+
+- ✅ **WebSocket Real-Time Streaming:** Messages stream token-by-token to frontend
+- ✅ **Message History Display:** Chat messages rendered with proper formatting
+- ✅ **Session Management:** Create new sessions, switch between sessions
+- ✅ **Responsive 2-Column Layout:** Sidebar + chat area with responsive sizing
+
+- ⚠️ ❌ **Live Telemetry Streaming — PARTIAL.** Backend streams CPU/RAM/Disk every 2s; not shown in chat status bar.
+- ⚠️ ❌ **Clickable Inline Citations — PARTIAL.** Citations rendered in RAG drawer; not inline Markdown links.
+- ⚠️ ❌ **Mermaid Rendering — NOT IMPLEMENTED.** Mermaid diagrams not auto-rendered.
+- ⚠️ ❌ **Scope Selector Chips — NOT IMPLEMENTED.** No UI for @web/@internal/@both selection.
 
 ## 💰 6. FinOps & DoS Protection
-*   **SHA-256 Deduplication:** Hashes uploaded files on-the-fly. If the hash already exists in the database, it skips the Vertex AI embedding process entirely, saving massive API costs.
-*   **Server-Side Streaming Byte Limits:** Reads uploads in 1MB chunks and instantly severs the network connection if a file exceeds 15MB, making the server immune to 50GB OOM (Out of Memory) crash attacks.
-*   **Sliding-Window Rate Limiter:** A local dictionary tracks upload frequencies, rejecting users with a `429 Too Many Requests` error if they upload more than 5 files per minute to protect the embedding queue.
-*   **Client-Side FinOps Workspace Filter:** Allows users to drag-and-drop entire local code folders, automatically stripping out junk folders (`node_modules`, `.git`, `.venv`) and binary files before hitting the server.
-*   **Live Cost Meter:** Parses token usage directly from the Vertex AI metadata and increments a live session cost meter (e.g., `$0.00084`) in the UI.
+
+- ✅ **SHA-256 Deduplication:** Files hashed to prevent duplicate embeddings
+- ✅ **File Size Validation:** Max 15MB upload limit enforced
+
+- ⚠️ ❌ **Server-Side Streaming Byte Limits — PARTIAL.** File size limit exists; 1MB chunk reading not verified.
+- ⚠️ ❌ **Sliding-Window Rate Limiter — NOT IMPLEMENTED.** No per-user rate limiting.
+- ⚠️ ❌ **Client-Side Workspace Filter — NOT IMPLEMENTED.** No folder ingester in UI.
+- ⚠️ ❌ **Live Cost Meter — NOT IMPLEMENTED.** Token counts not exposed in UI.
+
+---
+
+## SUMMARY: Verification Status
+
+**✅ VERIFIED (Phases 1, 1.5, 2):**
+- Database-driven auth with secure tokens
+- WebSocket real-time messaging with history hydration
+- RAG pipeline (upload, chunk, embed, search)
+- Intent routing (3-layer decision tree)
+- Session management (multi-session support)
+- Telemetry streaming (CPU/RAM/Disk)
+
+**⚠️ PARTIAL (Phase 4):**
+- Intent routing (framework complete; Google Search not integrated)
+- Confluence/ADO sync (routes exist; automation incomplete)
+
+**❌ MISSING (Phase 3 & Future):**
+- Conversation branching
+- Advanced context memory
+- Document management UI
+- Voice I/O
+- Model hot-swapping
+- Rate limiting
+- Audit logging
+- Encryption at rest

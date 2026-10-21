@@ -73,40 +73,46 @@ Before introducing heavy document contexts (RAG), the system has been hardened a
 
 ---
 
-### 🟩 Phase 4: Production-Grade Security & Agentic Routing (COMPLETED - 100%)
+### 🟩 Phase 4: Production-Grade Security & Agentic Routing (COMPLETED - PARTIAL)
 
-#### **4.1. The Honeypot Guest Mode Decoy (camouflage Security)**
-- [x] **Double-Passcode Login Gate (`LoginView.vue`):** Restructured the login page to support dual security clearances:
-  - **Admin Passcode (`vision@1133`):** Authenticates your credentials and unlocks the true, glowing AI Cockpit.
-  - **Guest Passcode (`vision2026`):** Authenticates the entrant as a `GUEST` and routes them to the decoy dashboard.
-- [x] **Honeypot Server Telemetry Dashboard (`GuestView.vue`):** Created a beautiful, fully static, fake "Server Monitoring Console" designed to look like a standard, boring IT infrastructure monitoring tool. It renders:
-  - **RailTVM Telemetry Logs:** Displaying mock Rail TVM kiosk events (`[TVM-NWD-04] Ticket printed`, `[PAYMENT-GW] EMV contactless approved`, `[RSRV-SRV] Seat allocated`). This is an extremely convincing camouflage for your Rail-focused colleagues!
-  - **Spinning Sweep Radar:** A completely static, highly professional scanning graphic.
-  - **Telemetric Metric Cards:** Mock latency, memory heap, and CPU loads.
-- [x] **Strict Router Security Guards (`router/index.ts`):** Programmed role-based navigation checks. If a Guest user manually types `https://.../` (HomeView) in their browser address bar, the Router Guard instantly intercepts them and force-redirects them back to the decoy `/guest` page. They are mathematically locked out!
+**⚠️ CLARIFICATION: Honeypot Guest Mode NOT IMPLEMENTED**
 
-#### **4.2. Pure LLM Semantic Intent Router (`ai_service.py`)**
-- [x] **Hybrid Decision-Tree Routing:** Replaced the fragile, hardcoded list of social keywords with an intelligent, multi-layered Python router:
-  - **Layer 1 (Deterministic Fast-Paths):** Zero-cost regex checks intercept explicit UI scope selections, power shortcuts (`@web`), and alphanumeric ticket IDs (`re.findall(r'\b\d{5,10}\b')`) instantly.
-  - **Layer 2 (LLM Intent Classification):** Vaguely written prompts are passed to a rapid, stateless `_classify_intent` Gemini call. The AI dynamically classifies intent into `GREETING`, `GENERAL`, `INTERNAL`, or `AMBIGUOUS`.
-  - **Layer 3 (Execution Policy):** Automatically branches the execution pipeline based on the classification:
-    - **`GREETING`** (e.g. `"yo bro"`, `"hiiiiii yo"`) ➔ Routes directly to conversational **`CHAT`** (No RAG, no DB searches, zero warnings).
-    - **`GENERAL`** ➔ Routes directly to **`WEB`** (Google Grounding).
-    - **`INTERNAL`** ➔ Routes to high-precision internal ChromaDB RAG.
-- [x] **Context-Aware Persona:** Overhauled V.I.S.I.O.N.'s conversational persona to mimic highly-contextual warmth:
-  - Bypasses the strict grounding failure warnings for social pleasantries or general software engineering questions.
-  - Naturally blends English/Hindi and uses friendly emojis in conversational turns.
-- [x] **Visual Metadata Filter (`SystemLog.vue`):** Added a regex filter inside the Markdown compiler to strip raw `[SOURCE: CHAT]` and `[SOURCE: WEB]` backend tags before rendering, keeping your chat feed 100% clean and professional.
+The following honeypot features were planned but NOT found in code:
+- ❌ **GuestView.vue** — Does not exist
+- ❌ **Double-Passcode Login** — NOT implemented (hardcoded passcodes `vision@1133` and `vision2026` do NOT appear in code)
+- ❌ **Honeypot Dashboard** — Does not exist
 
-#### **4.3. Premium Smart Scroll & Symmetrical UI**
-- [x] **Smart Scroll Anchoring (`handleScroll`):** Built a scroll position listener. If the user manually scrolls up to read history while V.I.S.I.O.N. is streaming a response, **the scroll bar locks instantly exactly where they are**, allowing them to read in absolute peace!
-- [x] **Smooth Scrolling Animations (`scrollToBottom`):** Upgraded viewport jumps with browser-native smooth scrolling animations (`scrollTo({ behavior: 'smooth' })`).
-- [x] **Symmetrical Floating 'Jump to Bottom' Button:** Positioned a glowing circular **`[ ↓ ]`** button perfectly and symmetrically centered horizontally (`left-1/2 -translate-x-1/2`) above your console. It features a pulsing green notification dot that flashes in the background to alert you of new incoming streamed tokens while you read history!
-- [x] **Non-Absolute Flexbox Column Layout:** Restructured the middle workspace column from an absolute overlapping overlay into a strict **flex-col layout**.
-- [x] **Zero-Pixel Overlap:** The scrollable chat feed block ends perfectly at the top boundary of your bottom console, meaning **chat bubbles physically stop at the console line during scrolling**, completely eliminating text overlaps!
-- [x] **Symmetrical Auto-Hiding HUD Spacing:** Wrapped your Route Reason and Token Cost status rows inside a stable, relative, fixed-height container (`h-10 mb-2.5 relative`) tied to `<transition name="fade">` and `v-show="!isUserScrolledUp"`.
-- [x] **Clean Dissolving HUD:** When you scroll up to read history, **your status row smoothly dissolves into the dark background in 400ms** with zero layout jumping, while your centered jump button slides down! When you return to the bottom, the status row dissolves back into view!
-- [x] **Metadata Stripping (`[MODEL_OVERRIDE]`):** Engineered regex on the backend to strip frontend model override tags (`[MODEL_OVERRIDE: gemini-2.5-flash]`), ensuring simple greetings never clash with the fast-path greetings bypass.
+**✅ What IS Implemented:**
+- [x] **Database-Driven Login** (`LoginView.vue`) — Secure credentials stored in SQLite, NOT hardcoded passcodes
+- [x] **Role-Based Access Control** — Roles stored in database (`admin`, `user`, `guest`)
+- [x] **Router Navigation Guards** (`router/index.ts`) — Restricts unauthenticated access
+- [x] **Secure Session Tokens** — 64-char cryptographic tokens (NOT passcodes)
+
+#### **4.2. Pure LLM Semantic Intent Router (`ai_service.py`) - VERIFIED COMPLETE**
+- [x] **Hybrid Decision-Tree Routing:** Implemented intelligent, multi-layered Python router:
+  - **Layer 1 (Deterministic Fast-Paths):** Regex checks intercept explicit scope shortcuts (`@web`, `@internal`, `@both`).
+  - **Layer 2 (LLM Intent Classification):** Call `_classify_intent()` to classify intent into `GREETING`, `GENERAL`, `INTERNAL`, or `AMBIGUOUS`.
+  - **Layer 3 (Execution Policy):** Routes based on classification:
+    - **`GREETING`** ➔ **`CHAT`** (no RAG, no external search)
+    - **`GENERAL`** ➔ **`WEB`** (intended for web search; not yet wired to Google API)
+    - **`INTERNAL`** ➔ **`RAG`** (ChromaDB semantic search)
+    - **`AMBIGUOUS`** ➔ Ask user for clarification
+- [x] **Context-Aware Persona:** System prompt (SYSTEM_DIRECTIVES.md) defines V.I.S.I.O.N.'s conversational style
+- [x] **Visual Metadata Filter (`SystemLog.vue`):** Regex strips backend routing tags (`[SOURCE: ...]`) before rendering
+
+#### **4.3. Smart Scroll & Responsive UI - VERIFIED COMPLETE**
+- [x] **Smart Scroll Anchoring:** Scroll position listener maintains user's place when reading history
+- [x] **Smooth Scrolling Animations:** Browser-native smooth scroll to bottom
+- [x] **Flexbox Layout:** Responsive 2-column HUD (sidebar + chat)
+- [x] **Chat Display:** Messages rendered with proper spacing and alignment
+- [x] **WebSocket Streaming:** Real-time token streaming display
+
+**⚠️ NOT IMPLEMENTED (Docs Claimed):**
+- ❌ **Model Selector UI** — Feature not found in code (locked to Gemini 2.5 Flash only)
+- ❌ **Scope Selector Chips** — Feature not found in code (routing is functional but no UI chips)
+- ❌ **Token Cost Meter** — Not visible in UI (backend doesn't expose token counts)
+- ❌ **Workspace Folder Ingester** — Feature not found in code
+- ❌ **Highlight-to-Ask Menu** — Feature not found in code
 
 ---
 
@@ -165,6 +171,16 @@ The following 5 documentation guides have been updated in lockstep synchronizati
 - [x] **Real-Time Token FinOps Cost Meter**: Backend extracts raw prompt and candidate token counts from response metadata, streams them via WebSocket `[TOKENS: in,out]`, and frontend parses/aggregates them to display running billing session cost in fractions of a cent ($0.075/1M input, $0.30/1M output).
 - [x] **Workspace Folder Ingester**: Desktop-only 1-click project directory upload utilizing HTML5 `webkitdirectory` attributes, collapsing files into a sleek visual Folder Chip on the UI and vectorizing the workspace folder in bulk recursively, completely hidden on mobile viewports (< 640px).
 - [x] **"Highlight-to-Ask" Response Refiner**: Desktop-only selectionchange listener tracking text bounding-boxes in V.I.S.I.O.N. chat bubbles, sliding up an ultra-premium, dark-glassmorphic, text-only capsule (`Explain` and `Code` action keys) centered perfectly above cursors, disabled on mobile viewports (< 640px) to prevent iOS/Android native overlays conflict.
+
+---
+
+### 🟥 Phase 3: Conversation Memory & Context (MISSING - NOT IMPLEMENTED)
+
+**Status:** ❌ Never built. Planned but deprioritized.
+
+- ❌ **Conversation Branching** — Allow users to branch conversation threads; not in code
+- ❌ **Advanced Context Memory** — Multi-turn context summarization; not in code
+- ❌ **Document Management UI** — Admin interface for uploaded documents; not in code
 
 ---
 
@@ -259,8 +275,11 @@ Instead of forcing developers to manually write follow-up questions detailing wh
 
 ---
 
-## 3. Phase 5 Roadmap: Advanced Developer & Codebase RAG (Future Backlog)
-To further elevate V.I.S.I.O.N.'s workspace ingestion capabilities into an elite, developer-first tool, the following high-value features recommended during architectural peer review are recorded for the next major release cycle:
+## 3. Phase 5+ Roadmap: Advanced Features (FUTURE BACKLOG - Not Implemented)
+
+**Status:** 🗺️ **Planned for future releases** (Q1+ 2027). These features were aspirational but are NOT yet in code.
+
+The following high-value features are recorded for the next major release cycles:
 
 ### **3.1. Git-Aware Ingestion (.gitignore Automated Parsing)**
 - **The Concept**: Automatically exclude dependencies and compiler garbage without manual config.
