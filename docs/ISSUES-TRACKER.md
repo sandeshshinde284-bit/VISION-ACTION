@@ -8,14 +8,14 @@
 
 ## SUMMARY
 
-Total Issues Found: **14 CRITICAL + HIGH PRIORITY BUGS**
+Total Issues Found: **15 CRITICAL + HIGH PRIORITY BUGS**
 
 | Category | Count | Status |
 |----------|-------|--------|
 | Error Handling | 6 issues | 🔴 CRITICAL |
-| UI/UX | 6 issues | 🔴 CRITICAL |
+| UI/UX | 7 issues | 🔴 CRITICAL |
 | Missing Features | 2 issues | 🔴 CRITICAL |
-| **TOTAL** | **14** | **DO NOT SHIP** |
+| **TOTAL** | **15** | **DO NOT SHIP** |
 
 ---
 
@@ -250,6 +250,62 @@ Total Issues Found: **14 CRITICAL + HIGH PRIORITY BUGS**
 
 ---
 
+#### ISSUE #13: No Real-time Processing Status Updates
+- **Location:** `backend/app/api/websockets.py`, `frontend/src/components/3-organisms/SystemLog.vue`
+- **Severity:** 🔴 CRITICAL
+- **Description:** User doesn't see what's happening in backend during processing
+- **Current Behavior:**
+  ```
+  Shows: "⏳ V.I.S.I.O.N. is thinking..."
+  [Silent for 5 seconds]
+  Response appears
+  ```
+- **Expected Behavior (like Claude/ChatGPT):**
+  ```
+  ⏳ V.I.S.I.O.N. is processing...
+     ✓ Fetching from Confluence... 12/25 pages (48%)
+     ✓ Embedding chunks... 8/15 chunks (53%)
+     ⏳ Calling Gemini 2.5 Flash...
+     ⏳ Generating response...
+     ⏱️ 3.2s elapsed
+  ```
+- **Problem:** User has NO visibility into what backend is doing
+- **Fix Needed:**
+  1. Backend sends granular WebSocket events: `{event: "processing_update", status: "fetching_confluence", details: "12/25 pages", progress_percent: 48}`
+  2. Frontend shows real-time progress with status icons (✓ done, ⏳ in progress)
+  3. Support progress percentages for long operations
+- **Implementation:**
+  ```python
+  # Backend events to send
+  {
+    "event": "processing_update",
+    "status": "fetching_confluence",
+    "details": "Retrieved 12 of 25 pages",
+    "progress_percent": 48
+  }
+  {
+    "event": "processing_update",
+    "status": "embedding_chunks",
+    "details": "Embedded 8 of 15 chunks",
+    "progress_percent": 53
+  }
+  {
+    "event": "processing_update",
+    "status": "calling_gemini",
+    "details": "Sending to Vertex AI Gemini 2.5 Flash",
+    "progress_percent": 75
+  }
+  {
+    "event": "processing_update",
+    "status": "generating_response",
+    "details": "Gemini generating response",
+    "progress_percent": 90
+  }
+  ```
+- **Test Case:** Send query, verify each processing step appears with progress, verify icons show completion status
+
+---
+
 ### ========== SECTION 3: MISSING FEATURES ==========
 
 **Status:** ❌ INCOMPLETE IMPLEMENTATION  
@@ -258,7 +314,7 @@ Total Issues Found: **14 CRITICAL + HIGH PRIORITY BUGS**
 
 ---
 
-#### ISSUE #13: Web Search UI Completely Missing
+#### ISSUE #14: Web Search UI Completely Missing
 - **Location:** `frontend/src/views/HomeView.vue`, `frontend/src/components/`
 - **Severity:** 🔴 CRITICAL
 - **Description:** Backend has @web/@internal/@both routing but NO UI
@@ -278,7 +334,7 @@ Total Issues Found: **14 CRITICAL + HIGH PRIORITY BUGS**
 
 ---
 
-#### ISSUE #14: No Sync Status Dashboard
+#### ISSUE #15: No Sync Status Dashboard
 - **Location:** `frontend/src/views/HomeView.vue`
 - **Severity:** 🔴 CRITICAL
 - **Description:** User has NO visibility into sync status
@@ -316,8 +372,9 @@ Total Issues Found: **14 CRITICAL + HIGH PRIORITY BUGS**
 | #10: Status history leak | 🔴 | 1h | 10 |
 | #11: Memory leak (timer) | 🔴 | 1h | 11 |
 | #12: Missing STREAMING state | 🔴 | 1h | 12 |
-| #13: Web search UI missing | 🔴 | 8h | 13 |
-| #14: No sync dashboard | 🔴 | 4h | 14 |
+| #13: No real-time processing updates | 🔴 | 4h | 13 |
+| #14: Web search UI missing | 🔴 | 8h | 14 |
+| #15: No sync dashboard | 🔴 | 4h | 15 |
 
 ---
 
@@ -335,25 +392,31 @@ Total Issues Found: **14 CRITICAL + HIGH PRIORITY BUGS**
 - [ ] Add to ADO sync
 - [ ] Add to Web search
 
-### Phase 3: UI/UX State Management (6 hours)
+### Phase 3: Real-time Processing Updates (4 hours)
+- [ ] Add processing status event emitter to backend
+- [ ] Wire WebSocket event sending (Confluence, ADO, Gemini calls)
+- [ ] Create processing status display in frontend
+- [ ] Add progress bar/percentage tracking
+
+### Phase 4: UI/UX State Management (6 hours)
 - [ ] Fix thinking state cleanup (Issue #7, #10, #11)
 - [ ] Add STREAMING state (Issue #12)
 - [ ] Create timeout/cancel button (Issue #9)
 - [ ] Add streaming feedback (Issue #8)
 
-### Phase 4: Missing Features (12 hours)
-- [ ] Create SearchInput component (Issue #13)
-- [ ] Create SyncStatusPanel component (Issue #14)
+### Phase 5: Missing Features (12 hours)
+- [ ] Create SearchInput component (Issue #14)
+- [ ] Create SyncStatusPanel component (Issue #15)
 - [ ] Wire search to backend
 - [ ] Wire sync status to backend
 
-### Phase 5: Testing & Polish (8 hours)
+### Phase 6: Testing & Polish (8 hours)
 - [ ] Unit tests for error types
 - [ ] Integration tests for retry logic
 - [ ] E2E tests for UI state transitions
 - [ ] Performance testing (memory leaks)
 
-**Total Effort: 36 hours (4-5 days)**
+**Total Effort: 40 hours (5 days)**
 
 ---
 
@@ -362,14 +425,16 @@ Total Issues Found: **14 CRITICAL + HIGH PRIORITY BUGS**
 Before shipping to production:
 
 - [ ] All error handling issues fixed (#1-6)
+- [ ] All real-time processing updates working (#13)
 - [ ] All UI/UX issues fixed (#7-12)
-- [ ] All missing features implemented (#13-14)
+- [ ] All missing features implemented (#14-15)
 - [ ] All unit tests passing
 - [ ] All integration tests passing
 - [ ] No memory leaks detected
 - [ ] Error messages tested with real failure scenarios
 - [ ] Retry logic tested with network simulation
 - [ ] State transitions verified manually
+- [ ] Real-time processing status shows on screen
 - [ ] Web search functionality works end-to-end
 - [ ] Sync status dashboard shows correct data
 
@@ -379,8 +444,9 @@ Before shipping to production:
 
 - **CRITICAL:** Do NOT ship without fixing error handling (Issues #1-6)
 - **CRITICAL:** Do NOT ship with broken thinking state (Issues #7-12)
-- **HIGH:** Web search missing (Issue #13) - major feature gap
-- **HIGH:** Sync dashboard missing (Issue #14) - user visibility issue
+- **CRITICAL:** Real-time processing updates required (Issue #13) - user visibility into backend
+- **HIGH:** Web search missing (Issue #14) - major feature gap
+- **HIGH:** Sync dashboard missing (Issue #15) - user visibility issue
 
 ---
 
