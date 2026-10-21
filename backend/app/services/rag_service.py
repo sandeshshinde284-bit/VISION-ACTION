@@ -54,65 +54,75 @@ class RAGService:
 
     def _generate_embedding(self, text: str) -> list:
         """Invokes Google Vertex AI text-embeddings API to convert text to a 768-D coordinate vector."""
-        url = f"https://{settings.GCP_LOCATION}-aiplatform.googleapis.com/v1/projects/{settings.GCP_PROJECT_ID}/locations/{settings.GCP_LOCATION}/publishers/google/models/text-embedding-004:predict"
-        
-        # Generate OAuth Bearer token dynamically using local OS ADC context (No hardcoded keys!)
-        from app.services.security_service import security_service
-        token = security_service.get_oauth_token()
-        
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
-        }
-        
-        # Vertex AI REST parameters
-        payload = {
-            "instances": [{"content": text}]
-        }
-        
-        res = requests.post(url, headers=headers, json=payload, timeout=10)
-        if res.status_code != 200:
-            raise ValueError(f"Vertex AI REST API returned HTTP {res.status_code}: {res.text}")
-            
-        data = res.json()
-        embedding = data["predictions"][0]["embeddings"]["values"]
-        return embedding
+        try:
+            url = f"https://{settings.GCP_LOCATION}-aiplatform.googleapis.com/v1/projects/{settings.GCP_PROJECT_ID}/locations/{settings.GCP_LOCATION}/publishers/google/models/text-embedding-004:predict"
+
+            # Generate OAuth Bearer token dynamically using local OS ADC context (No hardcoded keys!)
+            from app.services.security_service import security_service
+            token = security_service.get_oauth_token()
+
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
+
+            # Vertex AI REST parameters
+            payload = {
+                "instances": [{"content": text}]
+            }
+
+            res = requests.post(url, headers=headers, json=payload, timeout=10)
+            if res.status_code != 200:
+                logger.error(f"Vertex AI REST API failed: HTTP {res.status_code} - {res.text}")
+                raise ValueError(f"Vertex AI REST API returned HTTP {res.status_code}")
+
+            data = res.json()
+            embedding = data["predictions"][0]["embeddings"]["values"]
+            return embedding
+        except Exception as e:
+            logger.error(f"Failed to generate embedding via Vertex AI: {e}", exc_info=True)
+            raise
 
     def _generate_embeddings_batch(self, texts: list) -> list:
         """Groups multiple text slices into a single HTTP request to avoid latency and rate blocks.
         Implements sub-batching to prevent exceeding Vertex AI's 20,000 token limit per payload.
         """
-        url = f"https://{settings.GCP_LOCATION}-aiplatform.googleapis.com/v1/projects/{settings.GCP_PROJECT_ID}/locations/{settings.GCP_LOCATION}/publishers/google/models/text-embedding-004:predict"
+        try:
+            url = f"https://{settings.GCP_LOCATION}-aiplatform.googleapis.com/v1/projects/{settings.GCP_PROJECT_ID}/locations/{settings.GCP_LOCATION}/publishers/google/models/text-embedding-004:predict"
 
-        from app.services.security_service import security_service
-        token = security_service.get_oauth_token()
+            from app.services.security_service import security_service
+            token = security_service.get_oauth_token()
 
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
-        }
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
 
-        all_vectors = []
-        # Safe sub-batch size (15 chunks * ~350 tokens/chunk = ~5250 tokens per request)
-        # Safely below the 20,000 Vertex AI limit.
-        batch_size = 15 
+            all_vectors = []
+            # Safe sub-batch size (15 chunks * ~350 tokens/chunk = ~5250 tokens per request)
+            # Safely below the 20,000 Vertex AI limit.
+            batch_size = 15
 
-        for i in range(0, len(texts), batch_size):
-            sub_batch_texts = texts[i:i + batch_size]
-            instances = [{"content": text} for text in sub_batch_texts]
-            payload = {"instances": instances}
+            for i in range(0, len(texts), batch_size):
+                sub_batch_texts = texts[i:i + batch_size]
+                instances = [{"content": text} for text in sub_batch_texts]
+                payload = {"instances": instances}
 
-            res = requests.post(url, headers=headers, json=payload, timeout=30)
-            if res.status_code != 200:
-                raise ValueError(f"Vertex Batch REST API returned HTTP {res.status_code}: {res.text}")
+                res = requests.post(url, headers=headers, json=payload, timeout=30)
+                if res.status_code != 200:
+                    logger.error(f"Vertex Batch REST API failed: HTTP {res.status_code} - {res.text}")
+                    raise ValueError(f"Vertex Batch REST API returned HTTP {res.status_code}")
 
-            response_data = res.json()
-            predictions = response_data.get("predictions", [])
+                response_data = res.json()
+                predictions = response_data.get("predictions", [])
 
-            for pred in predictions:
-                all_vectors.append(pred["embeddings"]["values"])
+                for pred in predictions:
+                    all_vectors.append(pred["embeddings"]["values"])
 
-        return all_vectors
+            return all_vectors
+        except Exception as e:
+            logger.error(f"Failed to generate batch embeddings via Vertex AI: {e}", exc_info=True)
+            raise
 
     def _parse_document(self, file_path: str) -> str:
         """Parses a local text file and returns its raw string context."""
