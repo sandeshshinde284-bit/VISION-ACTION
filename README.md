@@ -1,4 +1,4 @@
-# J.A.R.V.I.S. (Autonomous Technical Assistant)
+# V.I.S.I.O.N. (Virtual Intelligent System for Integrated Operational Networks)
 
 A professional, voice-first HUD (Heads-Up Display) designed for advanced system orchestration and technical assistance.
 
@@ -18,4 +18,4 @@ A professional, voice-first HUD (Heads-Up Display) designed for advanced system 
 Detailed architectural and operational documents can be found in the `/docs` directory.
 - [Setup & Runbook](./docs/04-Runbook.md)
 - [System Architecture & Flow](./docs/06-SystemFlow.md)
-- [Protocol Specification](./docs/03-ProtocolSpec.md)
+- [Functional Requirements](./docs/07-FunctionalRequirements.md)
