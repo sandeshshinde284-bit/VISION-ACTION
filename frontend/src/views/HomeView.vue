@@ -829,7 +829,7 @@
                     </span>
                     <span>System Connection: {{ connectionStatus }}</span>
                   </div>
-                  <div class="ml-auto">{{ textInput.length.toLocaleString() }} / 15,000</div>
+                  <div class="ml-auto">{{ (textInput?.length ?? 0).toLocaleString() }} / 15,000</div>
                 </div>
 
               </div>
@@ -1396,8 +1396,9 @@ const deleteSession = async (sessionId: string) => {
 
 // Filtered sessions search computed array
 const filteredSessions = computed(() => {
-  if (!chatFilterQuery.value.trim()) return savedSessions.value;
-  return savedSessions.value.filter(s => s.title.toLowerCase().includes(chatFilterQuery.value.toLowerCase()));
+  const query = chatFilterQuery.value?.trim() ?? '';
+  if (!query) return savedSessions.value ?? [];
+  return (savedSessions.value ?? []).filter(s => s?.title?.toLowerCase()?.includes(query.toLowerCase()));
 });
 
 const showSessionNotice = () => {
@@ -1987,9 +1988,9 @@ const exportData = (content: string, name: string, format: 'json' | 'md' | 'txt'
 };
 
 const exportChatHistory = (format: 'md' | 'txt') => {
-  const history = receivedMessages.value.join('\n\n---\n\n');
+  const history = (receivedMessages.value ?? []).join('\n\n---\n\n');
   // Dynamic filename based on user's customized session topic!
-  const filenameBase = sessionTitle.value.toLowerCase().trim().replace(/\s+/g, '-');
+  const filenameBase = (sessionTitle.value ?? 'export').toLowerCase().trim().replace(/\s+/g, '-');
   exportData(history, filenameBase || 'chat-history', format);
 };
 

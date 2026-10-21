@@ -100,8 +100,11 @@ export class WebSocketService implements IWebSocketService {
           };
 
           // Browsers load voices asynchronously. If they aren't ready, wait for them.
-          if (window.speechSynthesis.getVoices().length === 0) {
-            window.speechSynthesis.onvoiceschanged = setVoice;
+          const voices = window?.speechSynthesis?.getVoices?.() ?? [];
+          if (voices.length === 0) {
+            if (window?.speechSynthesis) {
+              window.speechSynthesis.onvoiceschanged = setVoice;
+            }
           } else {
             setVoice();
           }
