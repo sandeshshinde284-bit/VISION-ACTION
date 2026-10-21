@@ -19,7 +19,7 @@ To prevent your local or cloud vector databases (ChromaDB) from bloating with ma
 To connect to Magellon's private Azure DevOps server, V.I.S.I.O.N. reads three environment variables:
 
 1.  **`ADO_URL`**: The base URL of your Azure DevOps Organization (e.g. `https://dev.azure.com/worldline`).
-2.  **`ADO_PROJECT`**: Your target corporate project name (e.g. `project-jarvis`). Scopes all crawls strictly to this project.
+2.  **`ADO_PROJECT`**: Your target corporate project name (e.g. `project-vision`). Scopes all crawls strictly to this project.
 3.  **`ADO_PAT`** (Sensitive): Your personal access token (PAT).
 
 ### 🔐 2.1. Dynamic Token Rotation in Google Secret Manager

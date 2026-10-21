@@ -158,7 +158,7 @@ Stores the vectorized semantic slices for high-speed multi-dimensional searches.
 As a developer or administrator, you do not have to write raw console commands to manage your data! You can use beautiful, free, and industry-standard GUI database tools to visually browse, edit, and audit your tables.
 
 ### 💻 A. Locally (Viewing SQLite):
-Your local SQLite database is stored on your laptop disk at `C:\Users\w114216\.gemini\tmp\jarvis\data\chat_history.db`.
+Your local SQLite database is stored on your laptop disk at `C:\Users\w114216\.gemini\tmp\vision\data\chat_history.db`.
 
 *   **The Recommended Tool: VS Code SQLite Viewer Extension**
     1.  Open VS Code on your machine.
@@ -227,7 +227,7 @@ Follow these steps to run and test the database-driven Confluence sync locally o
 We will delete any old database logs so the system boots fresh, initializes the new schema, and auto-seeds your live Magellon spaces (`PROJWT` and `ERK`):
 ```powershell
 # Navigate to your backend directory
-cd C:\SANDESH_AI\AI\JARVIS\project-jarvis\backend
+cd C:\SANDESH_AI\AI\vision\project-vision\backend
 
 # Wipe old local database file
 Remove-Item -Path "app/data/chat_history.db" -Force -ErrorAction SilentlyContinue
@@ -243,7 +243,7 @@ Remove-Item -Path "data/chat_history.db" -Force -ErrorAction SilentlyContinue
 ### Step 2: Verify Seeded Spaces locally
 In a new PowerShell window, run this Python one-liner to verify SQLite has registered your default spaces:
 ```powershell
-cd C:\SANDESH_AI\AI\JARVIS\project-jarvis\backend
+cd C:\SANDESH_AI\AI\vision\project-vision\backend
 .\.venv\Scripts\python.exe -c "from app.services.db_service import db_service; print('Active Local Spaces:', db_service.get_active_sync_targets('CONFLUENCE_SPACE'))"
 ```
 *Expected Output:*

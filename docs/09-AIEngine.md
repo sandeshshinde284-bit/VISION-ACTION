@@ -224,11 +224,11 @@ Follow-up questions (like "Compare this to before") are natively impossible for 
 * **The Loop**: Before executing a ChromaDB search, the system passes the active user input + the sliding window history to a fast Gemini 2.5 Flash query-rewriting utility:
   ```
   User Input: "How does this differ from the old approach?"
-  Sliding Window Context: [User asked about: Zscaler setup guides in project-jarvis]
+  Sliding Window Context: [User asked about: Zscaler setup guides in project-vision]
   
   ---> REWRITER PROMPT: "Given this context, rewrite the user input into a standalone, detailed vector search query."
   
-  Generated Query: "Differences and changes in Zscaler SSL certificate setup guides inside project-jarvis"
+  Generated Query: "Differences and changes in Zscaler SSL certificate setup guides inside project-vision"
   ```
 * **Result**: ChromaDB is queried using this highly descriptive rewritten query, guaranteeing 100% search relevance for follow-up dialogs!
 

@@ -222,7 +222,7 @@ In enterprise corporate networks (like Magellon), Zscaler interceptors perform S
 Corporate cloud infrastructure enforces strict Role-Based Access Control (RBAC). 
 - **Corporate Project**: `gbr-mts-wgh-hkt-dev` in region `europe-west1`.
 - **Role Requirement**: `gcp-mts-wgh-hkt-developer` assigned via Active Directory.
-- **Local Fallback Mode**: The system checks `.env`. If corporate authorizations are waiting, it falls back seamlessly to personal POC spaces (`project-jarvis-498006` in `us-central1`) to prevent engineering blockages.
+- **Local Fallback Mode**: The system checks `.env`. If corporate authorizations are waiting, it falls back seamlessly to personal POC spaces (`project-vision-498006` in `us-central1`) to prevent engineering blockages.
 
 ### 6.3. Cloud Run Scale-to-Zero & Cost Efficiency
 - **Configuration**: The backend and frontend Google Cloud Run configurations utilize a setting of `min_instances = 0` (Scale-to-Zero).

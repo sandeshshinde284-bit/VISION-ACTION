@@ -39,7 +39,7 @@ sequenceDiagram
     Browser API-->>User: Asks for Microphone Permission
     User-->>Browser API: Allows Permission
     AudioRecorder.vue->>Browser API: mediaRecorder.start()
-    User->>Browser API: Speaks "Hello Jarvis"
+    User->>Browser API: Speaks "Hello vision"
     User->>AudioRecorder.vue: Clicks Stop Button
     AudioRecorder.vue->>Browser API: mediaRecorder.stop()
     Browser API-->>AudioRecorder.vue: Fires 'onstop' event with audioBlob

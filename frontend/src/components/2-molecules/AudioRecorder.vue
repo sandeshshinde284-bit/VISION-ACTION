@@ -2,8 +2,8 @@
 <template>
   <section class="flex flex-col items-center justify-center space-y-4">
     
-    <!-- JARVIS CORE -->
-    <JarvisCore 
+    <!-- vision CORE -->
+    <visionCore 
       :state="currentVisualState"
       @click="toggleSession"
     />
@@ -30,7 +30,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue';
-import JarvisCore from '@/components/2-molecules/JarvisCore.vue';
+import visionCore from '@/components/2-molecules/visionCore.vue';
 import { useWebSocket } from '@/composables/useWebSocket';
 
 const props = defineProps<{

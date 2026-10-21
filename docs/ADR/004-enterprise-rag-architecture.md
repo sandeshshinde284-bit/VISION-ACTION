@@ -9,7 +9,7 @@
 
 At an enterprise scale, V.I.S.I.O.N. must function not as a dumb search engine, but as an expert Principal Engineer who has perfectly read and memorized every official organizational document.
 
-*   **Cross-Domain Intelligence:** If a user asks, *"What are the deployment steps for Project Jarvis, and are there any active bugs blocking it?"*, V.I.S.I.O.N. will automatically correlate the Project Jarvis Technical Spec from Confluence with the active bug tickets from Azure DevOps, presenting a single, unified summary.
+*   **Cross-Domain Intelligence:** If a user asks, *"What are the deployment steps for Project vision, and are there any active bugs blocking it?"*, V.I.S.I.O.N. will automatically correlate the Project vision Technical Spec from Confluence with the active bug tickets from Azure DevOps, presenting a single, unified summary.
 *   **Holistic Technical Comprehension:** Unlike standard RAG systems that retrieve fragmented sentences, V.I.S.I.O.N. is engineered to understand the *entirety* of a document. If a Functional Wiki has an architecture diagram at the top and a related error code table 10 pages down, V.I.S.I.O.N. processes the entire document simultaneously to provide a complete, cross-referenced answer.
 *   **Conversational Memory (Query Rewriting):** Users can interact conversationally. If a user asks a highly technical question, and then follows up with *"Wait, what if step 2 fails?"*, V.I.S.I.O.N. seamlessly remembers the context of the previous query and searches the corporate knowledge base specifically for failure mitigations related to that exact process.
 

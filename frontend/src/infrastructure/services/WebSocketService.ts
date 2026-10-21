@@ -87,13 +87,13 @@ export class WebSocketService implements IWebSocketService {
           const setVoice = () => {
             const voices = window.speechSynthesis.getVoices();
             // Look for a British Male voice (J.A.R.V.I.S. style)
-            const jarvisVoice = voices.find(v => 
+            const visionVoice = voices.find(v => 
               v.name.includes('Google UK English Male') || 
               v.name.includes('Microsoft George') || 
               v.lang === 'en-GB'
             );
             
-            if (jarvisVoice) utterance.voice = jarvisVoice;
+            if (visionVoice) utterance.voice = visionVoice;
             utterance.pitch = 0.85; 
             utterance.rate = 1.0;
             window.speechSynthesis.speak(utterance);

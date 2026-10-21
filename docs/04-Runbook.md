@@ -41,7 +41,7 @@ Corporate proxies perform deep packet SSL inspection, which routinely breaks Pyt
 ## 3. First-Time Project Setup
 
 ### 3.1. Environment Configuration
-1. Navigate to the root directory `project-jarvis/`.
+1. Navigate to the root directory `project-vision/`.
 2. Copy the template variables to create your active environment file:
    * **Windows Powershell**:
      ```powershell
@@ -71,7 +71,7 @@ Corporate proxies perform deep packet SSL inspection, which routinely breaks Pyt
    
    DATABASE_TARGET="LOCAL"  # Options: "LOCAL" (Chroma/SQLite) or "CLOUD" (PostgreSQL/pgvector)
    ```
-   *(If corporate cloud approvals are waiting, replace these with your personal fallback sandbox credentials: `GCP_PROJECT_ID=project-jarvis-498006` and `GCP_LOCATION=us-central1`)*
+   *(If corporate cloud approvals are waiting, replace these with your personal fallback sandbox credentials: `GCP_PROJECT_ID=project-vision-498006` and `GCP_LOCATION=us-central1`)*
 
 4. **Verify System Directives File**:
    Ensure the core AI rule book file **`docs/SYSTEM_DIRECTIVES.md`** exists inside your local repository. This file defines the core behavioral persona, standard coding languages, and security guardrails that the AI brain will dynamically load on startup. You can edit this file on the fly from the HUD cockpit.
@@ -116,7 +116,7 @@ Corporate proxies perform deep packet SSL inspection, which routinely breaks Pyt
 To start the V.I.S.I.O.N. assistant, you must run both the backend server and the frontend client simultaneously.
 
 ### 4.1. Step 1: Start the Backend (FastAPI Web Server)
-1. Open a terminal and navigate to `project-jarvis/backend/`.
+1. Open a terminal and navigate to `project-vision/backend/`.
 2. Ensure your virtual environment is active (indicated by `(.venv)` in your terminal prompt).
 3. Start the server using the designated python entry point:
    ```bash
@@ -128,7 +128,7 @@ To start the V.I.S.I.O.N. assistant, you must run both the backend server and th
    * `Uvicorn running on http://127.0.0.1:8000`
 
 ### 4.2. Step 2: Start the Frontend (Vite Dev Server)
-1. Open a separate terminal and navigate to `project-jarvis/frontend/`.
+1. Open a separate terminal and navigate to `project-vision/frontend/`.
 2. Start the hot-reloading development server:
    ```bash
    npm run dev
@@ -157,7 +157,7 @@ V.I.S.I.O.N. operates behind a strict, triple-tier authentication gate to protec
 
 ### **Issue 1: "Diagnostic failure: 403 Permission Denied"**
 * **Cause**: Your active GCP identity is authenticated but lacks explicit developer roles (`roles/aiplatform.user`) on the designated Google Cloud project.
-* **Fix**: Ensure your role role is active. While waiting, toggle the project ID in your `.env` to your personal sandbox project (`project-jarvis-498006`).
+* **Fix**: Ensure your role role is active. While waiting, toggle the project ID in your `.env` to your personal sandbox project (`project-vision-498006`).
 
 ### **Issue 2: "Diagnostic failure: SSL: CERTIFICATE_VERIFY_FAILED"**
 * **Cause**: You are running inside the Magellon corporate network, and Zscaler is intercepting the connection without virtual environment cert hooks.

@@ -95,7 +95,7 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             # Wait asynchronously for the next network message frame from the HUD
             message = await websocket.receive()
-            jarvis_response = None
+            vision_response = None
             text_query_used = ""
 
             if "bytes" in message:
@@ -111,7 +111,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     f.write(audio_data)
 
                 # Process temp audio through Gemini multimodal engine scoped to local memory
-                jarvis_response = ai_service.transcribe_audio(temp_file_path, history_list=connection_history, session_id=session_id)
+                vision_response = ai_service.transcribe_audio(temp_file_path, history_list=connection_history, session_id=session_id)
                 text_query_used = "[Voice Command transmitted]"
 
                 # Instantly purge temp file from disk after processing to prevent storage bloat
@@ -119,7 +119,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     os.remove(temp_file_path)
 
                 # Stream the transcribed response as JSON frames (Step 4 Issue #1 & #2)
-                if jarvis_response:
+                if vision_response:
                     message_id = f"msg_{uuid.uuid4().hex[:8]}"
                     from app.services.websocket_framing_service import websocket_framer
                     try:
@@ -127,7 +127,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             # 1. Message Start Frame
                             await websocket.send_text(websocket_framer.build_message_start(message_id))
                             # 2. Text Chunk Frame (The whole response)
-                            await websocket.send_text(websocket_framer.build_text_chunk(message_id, jarvis_response))
+                            await websocket.send_text(websocket_framer.build_text_chunk(message_id, vision_response))
                             # 3. Complete Frame
                             await websocket.send_text(websocket_framer.build_streaming_complete(message_id))
                     except Exception as ws_err:

@@ -29,7 +29,7 @@ router = APIRouter()
 if os.name != 'nt': # Running on Cloud Run (Linux/Unix container)
     TEMP_UPLOAD_DIR = "/tmp/temp_docs"
 else: # Running locally on your Windows laptop
-    TEMP_UPLOAD_DIR = os.path.abspath("C:/Users/w114216/.gemini/tmp/jarvis/temp_docs")
+    TEMP_UPLOAD_DIR = os.path.abspath("C:/Users/w114216/.gemini/tmp/vision/temp_docs")
 os.makedirs(TEMP_UPLOAD_DIR, exist_ok=True) # Ensure temp folder exists
 
 # Strict Corporate Safety Guardrails

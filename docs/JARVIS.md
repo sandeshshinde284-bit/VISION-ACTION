@@ -86,7 +86,7 @@ This section addresses the initial technical risks and details their solutions.
 ### **5. Functional Design (The Use Cases)**
 
 *   **The Confluence Bible:** J.A.R.V.I.S. crawls Confluence/ADO, allowing users to ask natural language questions about institutional knowledge (e.g., *"Why did we use this specific NFC protocol in 2022?"*).
-*   **Voice-First Developer Workspace:** Hands-free multitasking (e.g., *"Jarvis, review my current branch for security risks while I grab a coffee."*).
+*   **Voice-First Developer Workspace:** Hands-free multitasking (e.g., *"vision, review my current branch for security risks while I grab a coffee."*).
 *   **The Fleet Guardian:** Proactively tails hardware logs, detects failure patterns, and drafts fix tickets (e.g., *"Kiosk 402 is failing. I've analyzed the logs and drafted a fix ticket. Should I submit?"*).
 
 ### **6. Installation & Prerequisites**

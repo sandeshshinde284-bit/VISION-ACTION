@@ -38,7 +38,7 @@ from app.services.security_service import security_service
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] - %(message)s")
 logger = logging.getLogger("VisionConnectors")
 
-TEMP_DIR = os.path.abspath("C:/Users/w114216/.gemini/tmp/jarvis/temp_docs")
+TEMP_DIR = os.path.abspath("C:/Users/w114216/.gemini/tmp/vision/temp_docs")
 os.makedirs(TEMP_DIR, exist_ok=True)
 
 # ============================================================================

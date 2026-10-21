@@ -35,9 +35,9 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE_MB: int = 15 # DoS Protection: Max megabytes allowed per file upload
 
     # Local Storage & Caching Paths
-    LOCAL_DB_DIR: str = "C:/Users/w114216/.gemini/tmp/jarvis/data/chroma"
+    LOCAL_DB_DIR: str = "C:/Users/w114216/.gemini/tmp/vision/data/chroma"
     LOCAL_TEMP_AUDIO_DIR: str = "temp_audio"
-    LOCAL_TEMP_UPLOAD_DIR: str = "C:/Users/w114216/.gemini/tmp/jarvis/temp_docs"
+    LOCAL_TEMP_UPLOAD_DIR: str = "C:/Users/w114216/.gemini/tmp/vision/temp_docs"
 
     def model_post_init(self, __context):
         """Enforces strict, corporate configuration safety invariants on bootup (Fail-Fast)."""

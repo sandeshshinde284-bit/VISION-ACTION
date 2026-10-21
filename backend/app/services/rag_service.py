@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 if os.name != 'nt': # Running on Cloud Run (Linux/Unix container)
     TEMP_DIR = "/tmp/temp_docs"
 else: # Running locally on your Windows laptop
-    TEMP_DIR = os.path.abspath("C:/Users/w114216/.gemini/tmp/jarvis/temp_docs")
+    TEMP_DIR = os.path.abspath("C:/Users/w114216/.gemini/tmp/vision/temp_docs")
 os.makedirs(TEMP_DIR, exist_ok=True)
 
 class RAGService:

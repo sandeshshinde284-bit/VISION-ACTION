@@ -1,8 +1,8 @@
 # ============================================================================
-# PROJECT JARVIS - BACKEND DEPENDENCIES
+# PROJECT vision - BACKEND DEPENDENCIES
 # ============================================================================
 # Summary:
-# This file contains all Python dependencies for the Project JARVIS backend.
+# This file contains all Python dependencies for the Project vision backend.
 # The stack includes FastAPI for REST API development, Uvicorn for ASGI
 # serving, Google's Generative AI SDK for LLM integration, Pydantic for
 # configuration management, and Google ADK for agent development and tool

@@ -39,7 +39,7 @@ How to compile the production-ready frontend and backend containers cleanly. Alw
 
 ### Build the Frontend (v1.2.2)
 ```powershell
-cd C:\SANDESH_AI\AI\JARVIS\project-jarvis\frontend
+cd C:\SANDESH_AI\AI\vision\project-vision\frontend
 
 # 1. Compile the Vue assets natively (100% environment-agnostic!)
 npm run build-only
@@ -50,7 +50,7 @@ docker build --no-cache -t europe-west1-docker.pkg.dev/gbr-mts-wgh-hkt-dev/visio
 
 ### Build the Backend (v1.3.2)
 ```powershell
-cd C:\SANDESH_AI\AI\JARVIS\project-jarvis\backend
+cd C:\SANDESH_AI\AI\vision\project-vision\backend
 
 # Build the FastAPI container
 docker build --no-cache -t europe-west1-docker.pkg.dev/gbr-mts-wgh-hkt-dev/vision-repo/vision-backend:v1.3.2 -f ./Dockerfile .

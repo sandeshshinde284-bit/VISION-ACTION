@@ -1,4 +1,4 @@
-<!-- /frontend/src/components/2-molecules/JarvisCore.vue -->
+<!-- /frontend/src/components/2-molecules/visionCore.vue -->
 <template>
   <div 
     class="relative flex items-center justify-center w-full aspect-square max-w-[450px] mx-auto"
