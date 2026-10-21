@@ -402,11 +402,10 @@ class DatabaseService:
 
                 # Idempotent seeding of user credentials with proper hashing
                 import hashlib
-                default_admin_password = os.getenv('DEFAULT_ADMIN_PASSWORD', 'vision@sandesh')
-                hashed_password = hashlib.sha256(default_admin_password.encode()).hexdigest()
+                hashed_password = hashlib.sha256(settings.DEFAULT_ADMIN_PASSWORD.encode()).hexdigest()
 
                 default_users = [
-                    ("sandesh", hashed_password, "ADMIN")
+                    (settings.DEFAULT_ADMIN_USERNAME, hashed_password, "ADMIN")
                 ]
                 
                 if settings.DATABASE_TARGET == "CLOUD":

@@ -157,5 +157,9 @@ class Settings(BaseSettings):
     SESSION_TIMEOUT_HOURS: int = 24
     SESSION_TOKEN_LENGTH: int = 32  # 64-char base64 string
 
+    # Default Admin User (Created on first database initialization)
+    DEFAULT_ADMIN_USERNAME: str = "sandesh"
+    DEFAULT_ADMIN_PASSWORD: str = "vision@sandesh"
+
 # Create a single, importable instance of the settings.
 settings = Settings()
