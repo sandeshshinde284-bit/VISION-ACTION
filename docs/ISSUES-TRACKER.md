@@ -1,0 +1,390 @@
+# V.I.S.I.O.N. - MASTER ISSUES & BUGS TRACKER
+
+**Date:** 2026-10-21  
+**Status:** CRITICAL PRODUCTION ISSUES  
+**Version:** 1.0
+
+---
+
+## SUMMARY
+
+Total Issues Found: **14 CRITICAL + HIGH PRIORITY BUGS**
+
+| Category | Count | Status |
+|----------|-------|--------|
+| Error Handling | 6 issues | 🔴 CRITICAL |
+| UI/UX | 6 issues | 🔴 CRITICAL |
+| Missing Features | 2 issues | 🔴 CRITICAL |
+| **TOTAL** | **14** | **DO NOT SHIP** |
+
+---
+
+## CRITICAL ISSUES (DO NOT SHIP)
+
+### ========== SECTION 1: ERROR HANDLING GAPS ==========
+
+**Status:** ❌ ZERO GRACEFUL ERROR HANDLING  
+**Impact:** User is blind to failures  
+**Effort to Fix:** 24 hours (3 days)
+
+---
+
+#### ISSUE #1: Confluence Sync Fails Silently
+- **Location:** `backend/sync_connectors.py:sync_confluence_page()`
+- **Severity:** 🔴 CRITICAL
+- **Description:** When Confluence API fails, returns `False` with NO details
+- **Current Behavior:**
+  ```python
+  if res.status_code != 200:
+      logger.error(f"Confluence API failure: HTTP {res.status_code}")
+      return False  # ❌ User never knows what happened
+  ```
+- **Problem:** User doesn't know if page synced or why it failed
+- **Fix Needed:** Structured error response with error_type, retryable status, retry count
+- **Test Case:** Mock network timeout, verify user sees "Network timeout - retrying..."
+
+---
+
+#### ISSUE #2: ADO Sync Fails Silently
+- **Location:** `backend/sync_connectors.py:sync_ado_workitem()`
+- **Severity:** 🔴 CRITICAL
+- **Description:** Same as Issue #1 but for Azure DevOps
+- **Current Behavior:** Returns `False` with no error details
+- **Problem:** User doesn't know if work item synced
+- **Fix Needed:** Same as Issue #1 - structured error responses
+- **Test Case:** Mock HTTP 403 (permission denied), verify user sees "No permission to access"
+
+---
+
+#### ISSUE #3: No Retry Logic for Transient Errors
+- **Location:** `backend/sync_connectors.py` (all sync functions)
+- **Severity:** 🔴 CRITICAL
+- **Description:** Network blips cause permanent data loss
+- **Current Behavior:**
+  ```python
+  try:
+      res = requests.get(...)
+  except requests.exceptions.Timeout:
+      return False  # ❌ Gives up immediately
+  ```
+- **Problem:** Single network timeout = data gap forever
+- **Fix Needed:** Exponential backoff retry logic (5s → 10s → 20s...)
+- **Test Case:** Mock timeout, verify auto-retry 3 times with increasing delays
+
+---
+
+#### ISSUE #4: RAG Ingestion Failures Have No Error Details
+- **Location:** `backend/app/services/rag_service.py:ingest_document()`
+- **Severity:** 🔴 CRITICAL
+- **Description:** Returns `True|False` with no info about what failed
+- **Current Behavior:**
+  ```python
+  try:
+      chunks = chunk_document(file_path)
+      vectors = embed_chunks(chunks)
+      store_vectors(vectors)
+      return True
+  except Exception as e:
+      logger.error(f"Ingestion error: {e}")
+      return False  # ❌ Can't distinguish parse vs embed vs storage error
+  ```
+- **Problems:**
+  - PDF parsing error = can't distinguish from storage error
+  - Vertex AI quota exceeded = can't distinguish from network error
+  - ChromaDB down = can't distinguish from permission error
+- **Fix Needed:** Structured response with error_type (parsing|embedding|storage)
+- **Test Case:** Mock Vertex AI quota exceeded, verify user sees "Quota exceeded"
+
+---
+
+#### ISSUE #5: No Frontend Feedback on Sync Status
+- **Location:** `frontend/src/views/HomeView.vue`, `backend/app/api/sync_routes.py`
+- **Severity:** 🔴 CRITICAL
+- **Description:** User triggers sync but gets NO feedback on result
+- **Current Behavior:**
+  ```python
+  @router.post("/api/sync/confluence/page/{page_id}")
+  async def sync_single_confluence_page(...):
+      background_tasks.add_task(sync_connectors.sync_confluence_page, page_id)
+      return {"status": "queued", "page_id": page_id}
+      # ❌ Frontend never learns if it succeeded or failed
+  ```
+- **Problem:** User has NO idea if sync worked
+- **Frontend Shows:** "queued" ✓ then... silence ❌
+- **Fix Needed:** WebSocket callback with `{event: "sync_complete", status: "success|error", error_type: "...", error_message: "..."}`
+- **Test Case:** Trigger sync, verify WebSocket sends completion notification with error details
+
+---
+
+#### ISSUE #6: No Error Type Classification System
+- **Location:** Entire application
+- **Severity:** 🔴 CRITICAL
+- **Description:** All errors treated the same (no differentiation)
+- **Missing Error Types:**
+  - Network errors (retryable): timeout, unreachable, DNS failed
+  - Auth errors (permanent): invalid_credentials, token_expired, permission_denied
+  - Rate limiting (retryable): rate_limit_exceeded, quota_exceeded
+  - Data errors (permanent): not_found, file_too_large, invalid_format
+  - System errors (retryable): database_down, disk_full, vector_store_down
+- **Fix Needed:** Error type enum + structured responses across all integration points
+- **Test Case:** Mock each error type, verify correct retry behavior and user message
+
+---
+
+### ========== SECTION 2: UI/UX ISSUES ==========
+
+**Status:** ❌ "VISION IS THINKING" STATE COMPLETELY BROKEN  
+**Impact:** User confusion, doesn't know if Vision finished  
+**Effort to Fix:** 4-6 hours
+
+---
+
+#### ISSUE #7: "Vision is Thinking" State Never Ends
+- **Location:** `frontend/src/components/3-organisms/SystemLog.vue` (lines 131-161)
+- **Severity:** 🔴 CRITICAL
+- **Description:** Bouncing dots keep bouncing even after response arrives
+- **Current Behavior:**
+  ```
+  User: "What is the architecture?"
+  ↓
+  Shows: "⏳ V.I.S.I.O.N. is thinking... 0.5s"
+  ↓
+  [Response arrives]
+  ↓
+  STILL shows: "⏳ V.I.S.I.O.N. is thinking... 5.3s ⏳⏳⏳"
+  ```
+- **Problem:** User thinks Vision is still processing
+- **Root Cause:** No state transition from THINKING → STREAMING → STANDBY
+- **Fix Needed:** Proper state cleanup when aiState changes
+- **Test Case:** Send query, verify thinking indicator disappears when response starts streaming
+
+---
+
+#### ISSUE #8: No Feedback During Token Streaming
+- **Location:** `frontend/src/views/HomeView.vue`, `backend/app/api/websockets.py`
+- **Severity:** 🔴 CRITICAL
+- **Description:** User can't tell if Vision is still thinking or response is arriving
+- **Current Behavior:**
+  ```
+  THINKING state appears
+  [5 seconds of silence]
+  Response suddenly appears (no warning)
+  ```
+- **Problem:** Gap between "thinking" and "response visible"
+- **Fix Needed:** STREAMING state that shows "📨 V.I.S.I.O.N. is responding... text arriving..."
+- **Test Case:** Send query, verify "Streaming..." message appears before response text
+
+---
+
+#### ISSUE #9: Timeout Warning Has No Cancel Button
+- **Location:** `frontend/src/components/3-organisms/SystemLog.vue` (line 157-160)
+- **Severity:** 🔴 CRITICAL
+- **Description:** Shows "Taking longer than usual..." but user can't cancel
+- **Current Behavior:**
+  ```vue
+  <div v-if="elapsedSeconds > 5">
+    ⏱️ This is taking longer than usual...
+  </div>
+  <!-- ❌ No cancel button -->
+  ```
+- **Problem:** User is stuck waiting, no way to stop stuck request
+- **Fix Needed:** Add "❌ Cancel Request" button that stops WebSocket
+- **Test Case:** Mock slow response, verify cancel button appears and works
+
+---
+
+#### ISSUE #10: Status History Not Reset Between Queries
+- **Location:** `frontend/src/components/3-organisms/SystemLog.vue` (line 185)
+- **Severity:** 🔴 CRITICAL
+- **Description:** Shows old processing steps from previous queries
+- **Current Behavior:**
+  ```
+  Query 1:
+  ✓ Fetching Confluence (0.2s)
+  ✓ Embedding document (1.5s)
+  
+  Query 2:
+  ✓ Fetching Confluence (0.1s)     ← OLD, from Query 1!
+  ✓ Embedding document (0.8s)      ← OLD, from Query 1!
+  ⏳ Generating response (3.2s)
+  ```
+- **Problem:** Confusing - shows mixed old + new status
+- **Root Cause:** `statusHistory` ref never cleared on new query
+- **Fix Needed:** Clear `statusHistory = []` when aiState changes to THINKING
+- **Test Case:** Send two queries, verify old status history disappears
+
+---
+
+#### ISSUE #11: Timer Interval Causes Memory Leak
+- **Location:** `frontend/src/components/3-organisms/SystemLog.vue` (lines 188-196)
+- **Severity:** 🔴 CRITICAL
+- **Description:** Interval keeps running after response arrives
+- **Current Behavior:**
+  ```typescript
+  watch(() => props.aiState, (newState) => {
+    if (newState === 'THINKING') {
+      thinkingInterval = setInterval(...)
+    }
+    // ❌ NO CLEANUP when aiState changes to STANDBY
+  })
+  
+  onUnmounted(() => {
+    // ❌ MISSING cleanup
+  })
+  ```
+- **Problem:** Old interval + new interval = 2 timers running, then 3, then 4...
+- **Impact:** Performance degrades with each query
+- **Fix Needed:** Cleanup interval in watch + onUnmounted
+- **Test Case:** Send 5 rapid queries, verify no memory leak (use DevTools)
+
+---
+
+#### ISSUE #12: Missing STREAMING State
+- **Location:** `frontend/src/views/HomeView.vue` (define aiState type)
+- **Severity:** 🔴 CRITICAL
+- **Description:** State machine incomplete (STANDBY → THINKING → ??? → Response)
+- **Current States:** `'STANDBY' | 'THINKING' | 'SPEAKING'`
+- **Missing State:** `'STREAMING'` (token-by-token response arrival)
+- **Fix Needed:** Add STREAMING state between THINKING and SPEAKING
+- **Test Case:** Verify state transitions: STANDBY → THINKING → STREAMING → STANDBY/SPEAKING
+
+---
+
+### ========== SECTION 3: MISSING FEATURES ==========
+
+**Status:** ❌ INCOMPLETE IMPLEMENTATION  
+**Impact:** Critical functionality not usable  
+**Effort to Fix:** 8-12 hours
+
+---
+
+#### ISSUE #13: Web Search UI Completely Missing
+- **Location:** `frontend/src/views/HomeView.vue`, `frontend/src/components/`
+- **Severity:** 🔴 CRITICAL
+- **Description:** Backend has @web/@internal/@both routing but NO UI
+- **Backend Status:** ✅ Routes exist in `backend/app/api/main.py`
+- **Frontend Status:** ❌ NO UI components
+- **Missing Components:**
+  - Search scope selector (chips: @web, @internal, @both)
+  - Search input field
+  - Results display component
+  - Result ranking/pagination
+- **Fix Needed:**
+  1. Create SearchInput.vue component with scope chips
+  2. Add search results display
+  3. Wire to backend /api/directives endpoint
+  4. Handle search errors (timeout, no results, rate limit)
+- **Test Case:** Select @web scope, search "architecture", verify results display
+
+---
+
+#### ISSUE #14: No Sync Status Dashboard
+- **Location:** `frontend/src/views/HomeView.vue`
+- **Severity:** 🔴 CRITICAL
+- **Description:** User has NO visibility into sync status
+- **Missing Feature:** Dashboard showing:
+  ```
+  ✅ Confluence: Last sync 5 minutes ago (237 pages)
+  ⏳ ADO: Currently syncing... (12/47 items)
+  ❌ Web Search: Last sync failed - Network timeout
+  🔄 Retry All | ⚙️ Settings
+  ```
+- **Current Status:** User must check logs manually
+- **Fix Needed:**
+  1. Create SyncStatusPanel.vue component
+  2. Track sync history in database
+  3. Show last sync timestamp per source
+  4. Show retry options
+  5. Show error details
+- **Test Case:** Trigger Confluence sync, verify status appears in dashboard
+
+---
+
+## PRIORITY MATRIX
+
+| Issue | Severity | Effort | Priority |
+|-------|----------|--------|----------|
+| #1: Confluence fails silently | 🔴 | 4h | 1 |
+| #2: ADO fails silently | 🔴 | 4h | 2 |
+| #3: No retry logic | 🔴 | 4h | 3 |
+| #4: RAG ingestion errors | 🔴 | 4h | 4 |
+| #5: No sync feedback | 🔴 | 6h | 5 |
+| #6: No error classification | 🔴 | 2h | 6 |
+| #7: Thinking state never ends | 🔴 | 2h | 7 |
+| #8: No streaming feedback | 🔴 | 2h | 8 |
+| #9: Timeout not cancellable | 🔴 | 2h | 9 |
+| #10: Status history leak | 🔴 | 1h | 10 |
+| #11: Memory leak (timer) | 🔴 | 1h | 11 |
+| #12: Missing STREAMING state | 🔴 | 1h | 12 |
+| #13: Web search UI missing | 🔴 | 8h | 13 |
+| #14: No sync dashboard | 🔴 | 4h | 14 |
+
+---
+
+## IMPLEMENTATION PHASES
+
+### Phase 1: Error Handling Foundation (6 hours)
+- [ ] Create error type classification enum
+- [ ] Define SyncResponse dataclass
+- [ ] Update sync_confluence_page() with structured errors
+- [ ] Add WebSocket notification sending
+
+### Phase 2: Retry Logic (4 hours)
+- [ ] Implement retry_with_backoff() function
+- [ ] Add to Confluence sync
+- [ ] Add to ADO sync
+- [ ] Add to Web search
+
+### Phase 3: UI/UX State Management (6 hours)
+- [ ] Fix thinking state cleanup (Issue #7, #10, #11)
+- [ ] Add STREAMING state (Issue #12)
+- [ ] Create timeout/cancel button (Issue #9)
+- [ ] Add streaming feedback (Issue #8)
+
+### Phase 4: Missing Features (12 hours)
+- [ ] Create SearchInput component (Issue #13)
+- [ ] Create SyncStatusPanel component (Issue #14)
+- [ ] Wire search to backend
+- [ ] Wire sync status to backend
+
+### Phase 5: Testing & Polish (8 hours)
+- [ ] Unit tests for error types
+- [ ] Integration tests for retry logic
+- [ ] E2E tests for UI state transitions
+- [ ] Performance testing (memory leaks)
+
+**Total Effort: 36 hours (4-5 days)**
+
+---
+
+## GO/NO-GO CHECKLIST
+
+Before shipping to production:
+
+- [ ] All error handling issues fixed (#1-6)
+- [ ] All UI/UX issues fixed (#7-12)
+- [ ] All missing features implemented (#13-14)
+- [ ] All unit tests passing
+- [ ] All integration tests passing
+- [ ] No memory leaks detected
+- [ ] Error messages tested with real failure scenarios
+- [ ] Retry logic tested with network simulation
+- [ ] State transitions verified manually
+- [ ] Web search functionality works end-to-end
+- [ ] Sync status dashboard shows correct data
+
+---
+
+## NOTES
+
+- **CRITICAL:** Do NOT ship without fixing error handling (Issues #1-6)
+- **CRITICAL:** Do NOT ship with broken thinking state (Issues #7-12)
+- **HIGH:** Web search missing (Issue #13) - major feature gap
+- **HIGH:** Sync dashboard missing (Issue #14) - user visibility issue
+
+---
+
+**Created:** 2026-10-21  
+**Updated:** —  
+**Status:** ACTIVE - Ready for implementation
+
