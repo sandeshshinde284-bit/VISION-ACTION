@@ -58,15 +58,31 @@ The V.I.S.I.O.N. UI has a **functional dark/light mode system** with **decent ty
 - **Animation:** 500ms color transitions (smooth theme switch)
 - **Status:** EXCELLENT — this is the flagship design
 
-### ⚠️ Theme Persistence Issues
+### ⚠️ Theme System: TIME-BASED BY DESIGN (MAGELLAN)
 ```javascript
-// ISSUE: Light mode theme preference is NOT persisted
-isDarkMode.value = (hour < 6 || hour >= 18);  // ← Always resets on load
+// CURRENT IMPLEMENTATION: Auto-switch based on time of day
+// Dark mode: 18:00 - 6:00 (evening to morning)
+// Light mode: 6:00 - 18:00 (morning to evening)
 
-// SHOULD BE:
-const savedTheme = localStorage.getItem('vision_theme');
-isDarkMode.value = savedTheme ? JSON.parse(savedTheme) : (hour < 6 || hour >= 18);
+const hour = new Date().getHours();
+isDarkMode.value = (hour < 6 || hour >= 18);  // ← Time-based, NOT user preference
+
+// ISSUE: User can toggle theme, but it resets on page reload
+// This is INTENTIONAL (Magellan design) but breaks user expectations
 ```
+
+### Design Decision: "Magellan" Time-Based Theme
+This is the **intentional design philosophy** — theme follows time of day automatically:
+- **Evening/Night** (6 PM - 6 AM): Auto-switches to dark mode
+- **Day** (6 AM - 6 PM): Auto-switches to light mode
+- **User toggle:** Temporary override (resets on reload)
+- **Philosophy:** "Your app adapts to your environment"
+
+### Verdict on This Decision
+- ✅ **Creative & novel** — Good UX for all-day users
+- ⚠️ **User preference ignored** — If user wants dark at noon, it won't persist
+- ⚠️ **Unexpected behavior** — Users expect toggle to persist
+- **Recommendation:** Add **lock button** next to theme toggle to "freeze" current theme
 
 ---
 
@@ -429,7 +445,9 @@ Desktop:    lg (1024px), xl (1280px)
 ## RECOMMENDATIONS (PRIORITY ORDER)
 
 ### 🔴 CRITICAL (Must Fix Before Production)
-1. **Implement theme persistence** (localStorage + prefers-color-scheme)
+1. **Add theme lock button** (let users freeze current theme; don't always auto-switch)
+   - Current: Time-based only, user toggle resets on reload (Magellan design)
+   - Fix: Add 🔒 lock button next to theme toggle to persist user choice
 2. **Add search scope UI** (chip selector for @web/@internal/@both)
 3. **Add RAG mode indicator** (show user which search type is active)
 4. **Fix hardcoded colors** in components (use CSS variables everywhere)
@@ -458,8 +476,8 @@ Desktop:    lg (1024px), xl (1280px)
 
 ### Phase 1: Critical Fixes (1-2 days)
 ```
-□ Theme persistence (localStorage)
-□ Search scope UI (chip selector)
+□ Theme lock button (freeze time-based auto-switch)
+□ Search scope UI (chip selector for @web/@internal/@both)
 □ RAG mode indicator badge
 □ Replace hardcoded colors with CSS vars
 ```
