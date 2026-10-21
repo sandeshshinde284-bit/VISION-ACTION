@@ -140,7 +140,7 @@ const fetchTickets = async () => {
   // 1. Check Frontend Local Cache
   const now = Date.now();
   if (cache[kw] && cache[kw].expiry > now) {
-    console.log("SmartButton: Serving tickets directly from local frontend cache (0ms latency hit).");
+    // Serving from local cache (0ms latency)
     tickets.value = cache[kw].data;
     state.value = 'SUCCESS';
     return;

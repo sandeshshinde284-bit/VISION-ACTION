@@ -115,7 +115,7 @@ export class WebSocketService implements IWebSocketService {
     };
 
     this.socket.onclose = () => {
-      console.log("WebSocket connection closed.");
+      // WebSocket connection closed
       this.socket = null;
       onClose();
     };
@@ -155,7 +155,7 @@ sendAudio(data: Blob): void {
 }
 
 interruptAudio(): void {
-  console.log("Interrupting J.A.R.V.I.S. audio output...");
+  // Stop audio output
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
     if (this.onStateChange) this.onStateChange('STANDBY');

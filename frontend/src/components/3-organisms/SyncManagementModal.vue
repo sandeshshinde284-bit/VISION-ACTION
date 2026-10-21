@@ -271,7 +271,7 @@ function showError(message: string) {
 
 function showSuccess(message: string) {
   lastError.value = ''
-  console.log('✓', message)
+  // Success: message logged
 }
 
 function openModal() {

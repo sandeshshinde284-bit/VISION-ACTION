@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 # Define platform-aware database storage path (Prevents serverless Cloud Run read-only disk crashes!)
 if os.name != 'nt': # Running on Cloud Run (Linux/Unix container)
     DB_DIR = "/tmp/data"
-else: # Running locally on your Windows laptop
-    DB_DIR = os.path.abspath("C:/Users/w114216/.gemini/tmp/vision/data")
+else: # Running locally (Windows/Mac)
+    DB_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "data"))
 
 DB_PATH = os.path.join(DB_DIR, "chat_history.db")
 
