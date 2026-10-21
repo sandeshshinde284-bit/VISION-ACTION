@@ -2,6 +2,10 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks, Query, Request
 from app.core.config import settings
 from app.services.db_service import db_service
 from app.services.security_service import security_service
+from app.api.schemas import (
+    SyncPageRequest, SyncDeltaRequest, SyncWorkitemRequest,
+    SyncFullRefreshRequest, SyncResponse
+)
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 import logging
@@ -40,9 +44,9 @@ def require_admin():
 # # Confluence Sync Endpoints
 # ============================================================================
 
-@router.post("/confluence/page/{page_id}")
+@router.post("/confluence/page/{page_id}", response_model=SyncResponse)
 @limiter.limit("20/hour")
-async def sync_single_confluence_page(request: Request, page_id: str, background_tasks: BackgroundTasks):
+async def sync_single_confluence_page(request: Request, page_id: str, background_tasks: BackgroundTasks, sync_req: SyncPageRequest = None):
     """
     Manually trigger synchronization of a single Confluence page by ID.
     Executes in background to avoid timeout.

@@ -34,6 +34,36 @@ class Settings(BaseSettings):
     VERTEX_EMBEDDING_BATCH_SIZE: int = 15 # Sub-batching limit to prevent Google API 400 Payload Too Large errors
     MAX_UPLOAD_SIZE_MB: int = 15 # DoS Protection: Max megabytes allowed per file upload
 
+    # API Rate Limiting Configuration
+    RATE_LIMIT_UPLOAD_WINDOW: int = 60  # seconds
+    RATE_LIMIT_UPLOAD_COUNT: int = 5    # max uploads per window
+    RATE_LIMIT_SYNC_CONFLUENCE_PAGE: str = "20/hour"
+    RATE_LIMIT_SYNC_CONFLUENCE_DELTA: str = "5/hour"
+    RATE_LIMIT_SYNC_ADO_ITEM: str = "20/hour"
+    RATE_LIMIT_SYNC_ADO_DELTA: str = "5/hour"
+
+    # Text Processing Configuration
+    RAG_CHUNK_SIZE: int = 1500
+    RAG_CHUNK_OVERLAP: int = 300
+    MAX_SEMANTIC_CACHE_SIZE: int = 500
+    MAX_LOG_ENTRIES: int = 500
+
+    # Session & Message Configuration
+    DEFAULT_SESSION_ID: str = "default_session"
+    DEFAULT_SESSION_TITLE: str = "Default Session"
+    DEFAULT_CHAT_TITLE: str = "General Session"
+    MAX_MESSAGE_LENGTH: int = 50000
+    MAX_SESSION_TITLE_LENGTH: int = 255
+
+    # Sync Configuration
+    MIN_SYNC_INTERVAL_MINUTES: int = 1
+    MAX_SYNC_INTERVAL_MINUTES: int = 1440  # 1 day
+    DEFAULT_SYNC_INTERVAL_MINUTES: int = 60
+
+    # Response Configuration
+    HTTP_TIMEOUT_SECONDS: int = 10
+    HTTP_TIMEOUT_LONG_SECONDS: int = 20
+
     # Local Storage & Caching Paths
     LOCAL_DB_DIR: str = "C:/Users/w114216/.gemini/tmp/vision/data/chroma"
     LOCAL_TEMP_AUDIO_DIR: str = "temp_audio"
