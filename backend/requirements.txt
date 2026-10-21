@@ -1,0 +1,71 @@
+# ============================================================================
+# PROJECT JARVIS - BACKEND DEPENDENCIES
+# ============================================================================
+# Summary:
+# This file contains all Python dependencies for the Project JARVIS backend.
+# The stack includes FastAPI for REST API development, Uvicorn for ASGI
+# serving, Google's Generative AI SDK for LLM integration, Pydantic for
+# configuration management, and Google ADK for agent development and tool
+# orchestration.
+# ============================================================================
+
+# --- Core Web Framework ---
+# FastAPI framework for building the API.
+fastapi==0.111.0
+
+# --- ASGI Server ---
+# Uvicorn with standard extras for high-performance networking and WebSocket support.
+uvicorn[standard]==0.29.0
+
+# --- AI SDK ---
+# Google's enterprise SDK for Vertex AI.
+google-cloud-aiplatform>=1.49.0
+
+# --- Configuration Management ---
+# For loading settings from environment variables and .env files into Pydantic models.
+pydantic-settings==2.2.1
+
+# --- .env File Loading ---
+# Dependency for pydantic-settings to read from .env files.
+python-dotenv==1.0.1
+
+# The Agent Development Kit for reasoning and tool orchestration
+# google-adk==2.0.0
+
+# --- Certificate Management ---
+# Python package for Mozilla's CA Bundle for SSL certificate verification.
+certifi==2024.2.2
+
+# Automatically use the Windows certificate store. 
+# Essential for corporate proxies like Zscaler.
+pip-system-certs==5.3
+
+# System monitoring
+psutil>=5.9.0
+
+httpx==0.27.0
+
+# API Resilience
+# Tenacity for robust, declarative exponential backoff and retry handlers.
+tenacity>=8.2.3
+
+# --- RAG Ingestion Pipeline (Phase 2) ---
+# ChromaDB for local vector embeddings database.
+chromadb>=0.5.0
+
+# pypdf for PDF text parsing.
+pypdf>=4.2.0
+
+# python-docx for Microsoft Word (.docx) document parsing.
+docx2txt>=0.8
+python-docx>=1.1.2
+
+# python-multipart for handling multi-file upload forms in FastAPI.
+python-multipart>=0.0.9
+
+# For converting rich ADO HTML tickets into clean Markdown
+html2text>=2024.2.26
+
+# --- Critical Issue #C Fix: Rate Limiting ---
+# slowapi for robust rate limiting to prevent DoS attacks
+slowapi>=0.1.9

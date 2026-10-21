@@ -1,0 +1,31 @@
+include:
+  - project: "kazan-community/gitlab-ci-templates"
+    ref: latest
+    file: "/flavors/terraform/gitlab-ci.terraform.flavor.yml"
+
+# Disable merge request pipelines in favor of branch pipelines
+# https://docs.gitlab.com/ee/ci/yaml/workflow.html#switch-between-branch-pipelines-and-merge-request-pipelines
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: never
+    - if: $CI_COMMIT_BRANCH
+
+variables:
+  ENABLE_TERRAFORM_FMT: "true"
+
+  ENABLE_ENV_DEV:
+    description: "If you set it to true it will run terraform on the corresponding environment (workspace)"
+    value: "true"
+
+  ENABLE_ENV_IACC:
+    description: "If you set it to true it will run terraform on the corresponding environment (workspace)"
+    value: "false"
+
+  ENABLE_ENV_EACC:
+    description: "If you set it to true it will run terraform on the corresponding environment (workspace)"
+    value: "false"
+
+  TERRAFORM_PLAN_OPTS:
+    value: "-target module.vision-backend-cloud-run-service -target module.vision-frontend-cloud-run-service -target google_cloud_scheduler_job.vision_sync_scheduler -target module.cloudsql-gateway -target module.cloudsql"
+    description: "You can use here all plan argument for exemple : -target module.test -target azurerm_virtual_network.this -refresh=false. See: terraform plan --help"

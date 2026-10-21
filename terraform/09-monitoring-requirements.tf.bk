@@ -1,0 +1,27 @@
+variable "oscare_url" {
+  description = "The url of the oscare endpoint you want to join to send alerts of the project"
+  type        = string
+  validation {
+    condition     = contains(["oscare.onemonitoring.eacc.as8677.net", "oscare.onemonitoring.worldline-solutions.com"], var.oscare_url)
+    error_message = "Oscare url must be one of oscare.onemonitoring.eacc.as8677.net(NO PROD) or oscare.onemonitoring.worldline-solutions.com(PROD)."
+  }
+}
+
+module "monitoring-requirements" {
+  source          = "git::https://gitlab.kazan.myworldline.com/ccc/terraform/modules/gcp/monitoring-requirements.git?ref=3.5.0"
+  object_code     = var.object_code
+  oscare_password = var.oscare_secret
+  oscare_user     = var.oscare_token
+  oscare_url      = var.oscare_url
+  project         = local.project_id
+  sid             = var.sid
+  suffix          = terraform.workspace
+  region          = var.region
+  apis            = local.apis
+}
+
+module "cloud-nat-monitoring" {
+  source                  = "git::https://gitlab.kazan.myworldline.com/ccc/terraform/modules/gcp/monitoring/cloud_nat_bundle.git?ref=1.0.0"
+  monitoring_requirements = module.monitoring-requirements
+  project                 = local.project_id
+}

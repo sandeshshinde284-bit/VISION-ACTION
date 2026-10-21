@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    /* LIGHT MODE (Clean, Professional B2B Corporate SaaS - Contrast Sidebar Style) */
+    --bg-primary: #ffffff;    /* Pure, clean, crisp white main chat area */
+    --bg-panel: #f8fafc;      /* Soft Slate-50 sidebar, header, and panels (Slack-style!) */
+    --text-primary: #0f172a;   /* Deep Slate-900 for absolute high-contrast reading */
+    --text-secondary: #475569; /* Slate-600 for highly readable descriptions */
+    --accent: #0055d4;         /* Authoritative corporate cobalt blue */
+    --border: #e2e8f0;         /* Soft, clean Slate-200 borders between sections */
+    --border-w: 1px;          /* Flat, thin B2B borders */
+    
+    /* Core Specifics for Light Mode */
+    --core-iris: #0f172a;
+    --core-glow: transparent; /* No glows for flat B2B corporate standard */
+  }
+
+  .dark {
+    /* MAGELLAN DARK MODE (Professional Corporate SaaS Layout - High Contrast) */
+    --bg-primary: #0a0d14;    /* Sleek charcoal-black main chat area */
+    --bg-panel: #04060b;      /* Rich, deep black sidebars and header for absolute section separation */
+    --text-primary: #ffffff;   /* Pure white main text */
+    --text-secondary: #cbd5e1; /* Bright, highly-readable slate-gray for accessibility */
+    --accent: #1d4ed8;         /* Professional executive corporate blue */
+    --border: #1e293b;
+    --border-w: 1px;      /* Clean, flat, thin 1px B2B borders */
+
+    /* Core Specifics for Dark Mode */
+    --core-iris: #ffffff;
+    --core-glow: rgba(0, 136, 255, 0.2);
+  }
+
+  body {
+    @apply transition-colors duration-500 overflow-hidden antialiased;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+}
+
+@layer utilities {
+  .hud-border {
+    transition-property: border-color, border-width, background-color;
+    transition-duration: 500ms;
+    border-style: solid;
+    border-width: var(--border-w);
+    border-color: var(--border);
+  }
+
+  .animate-spin-slow {
+    animation: spin 30s linear infinite;
+  }
+
+  .animate-spin-reverse {
+    animation: spin-reverse 20s linear infinite;
+  }
+}
+
+@keyframes spin-reverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+/* Hide Scrollbars for a clean tech look */
+::-webkit-scrollbar {
+  display: none;
+}
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

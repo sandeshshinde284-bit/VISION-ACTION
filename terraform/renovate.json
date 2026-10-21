@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "rangeStrategy": "widen",
+  "separateMajorMinor": false,
+  "extends": [
+    "group:allNonMajor",
+    ":dependencyDashboard",
+    "config:best-practices",
+    "local>globalarchitecture/sw-architecture/renovate/wl-presets:terraform-major-one-by-one"
+  ]
+}

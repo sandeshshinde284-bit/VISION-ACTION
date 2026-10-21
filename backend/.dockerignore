@@ -1,0 +1,25 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+logs/
+temp_docs/
+temp_audio/
+data/
+
+# IDE and OS files
+.vscode/
+.vs/
+.idea/
+.DS_Store
+
+# Git
+.git/
+.gitignore
+
+# Environment variables
+.env
+.env.*
+!.env.example
