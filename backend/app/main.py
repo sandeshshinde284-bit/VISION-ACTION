@@ -74,8 +74,8 @@ app.add_middleware(
 )
 
 # --- Mount Routers ---
-app.include_router(websockets.router) 
-app.include_router(uploads.router) 
+app.include_router(websockets.router)
+app.include_router(uploads.router)
 
 # Issue #2 Fix: Mount sync management router
 from app.api import sync_routes
@@ -84,6 +84,10 @@ app.include_router(sync_routes.router)
 # Sync status & history endpoints (UI dashboard)
 from app.api import sync_status
 app.include_router(sync_status.router)
+
+# Logging API for frontend log ingestion
+from app.api import logs
+app.include_router(logs.router)
 
 # --- Directives API (Phase 4 - Cloud Persistent & Database-Backed) ---
 DIRECTIVES_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "SYSTEM_DIRECTIVES.md"))
