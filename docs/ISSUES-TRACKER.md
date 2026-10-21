@@ -10,18 +10,139 @@
 
 Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS**
 
-| Category | Count | Status |
-|----------|-------|--------|
-| Error Handling | 6 issues | 🔴 CRITICAL |
-| UI/UX | 8 issues | 🔴 CRITICAL |
-| Missing Features | 2 issues | 🔴 CRITICAL |
-| **TOTAL** | **16** | **DO NOT SHIP** |
+| Priority | Category | Count | Status |
+|----------|----------|-------|--------|
+| 🔴 MUST FIX | Chat System | 5 issues | BLOCKS EVERYTHING |
+| 🔴 MUST FIX | Error Handling | 6 issues | User blind to failures |
+| 🟠 SHOULD FIX | Real-time Feedback | 1 issue | User doesn't see progress |
+| 🟡 NICE TO HAVE | Missing Features | 2 issues | Incomplete product |
+| 🟡 NICE TO HAVE | Design System | — | Glasmorphic → Flat/Hybrid |
+| **TOTAL** | — | **16** | **DO NOT SHIP** |
+
+---
+
+## DESIGN SYSTEM NOTE
+
+**Planned Design Change:**
+- Current: Pure glasmorphic (frosted glass aesthetic)
+- Planned: **Hybrid glasmorphic + flat design**
+  - Glasmorphic: For premium feel (dropdowns, modals, accents)
+  - Flat: For readability & enterprise feel (main content areas)
+  - Result: Modern, professional, balanced
 
 ---
 
 ## CRITICAL ISSUES (DO NOT SHIP)
 
-### ========== SECTION 1: ERROR HANDLING GAPS ==========
+### ========== SECTION 1: CHAT SYSTEM RELIABILITY (PRIORITY #1) ==========
+
+**Status:** 🔴 CORE PRODUCT BROKEN  
+**Impact:** Chat is unusable when switching sessions or sending queries  
+**Effort to Fix:** 10 hours (most urgent)
+
+**Chat System Issues:** #14, #7, #8, #9, #10, #11, #12, #5
+
+---
+
+#### ISSUE #14: Chat History Order Reversed When Switching Sessions
+- **Location:** `backend/app/api/websockets.py:83`, `backend/app/services/db_service.py`
+- **Severity:** 🔴 CRITICAL
+- **Description:** Messages appear in reverse chronological order when user switches sessions
+- **Current Behavior:**
+  ```
+  User: "Hi" → Vision: "Hi" → User: "How are you?" → Vision: "Fine"
+  
+  When switch back to session:
+  Vision: "Fine"           ← NEWEST FIRST (WRONG)
+  User: "How are you?"
+  Vision: "Hi"
+  User: "Hi"              ← OLDEST LAST (WRONG)
+  ```
+- **Root Cause:** Backend reverses messages for Vertex AI context, sends reversed list to frontend
+- **Fix Needed:** Separate paths: display (chronological) vs AI context (reversed)
+- **Impact:** 🔴 Chat history completely broken — users see garbled conversation order
+- **Effort:** 2 hours
+
+---
+
+#### ISSUE #7: "Vision is Thinking" State Never Ends
+- **Location:** `frontend/src/components/3-organisms/SystemLog.vue` (lines 131-161)
+- **Severity:** 🔴 CRITICAL
+- **Description:** Bouncing dots keep bouncing even after response arrives
+- **Problem:** User thinks Vision is still processing even though response is visible
+- **Fix Needed:** Proper state cleanup when aiState changes
+- **Impact:** 🔴 Chat UX completely broken — user confusion
+- **Effort:** 2 hours
+
+---
+
+#### ISSUE #8: No Feedback During Token Streaming
+- **Location:** `frontend/src/views/HomeView.vue`, `backend/app/api/websockets.py`
+- **Severity:** 🔴 CRITICAL
+- **Description:** User can't tell if Vision is thinking or response is arriving
+- **Problem:** Gap between "thinking" and "response visible"
+- **Fix Needed:** STREAMING state showing "📨 V.I.S.I.O.N. is responding..."
+- **Impact:** 🔴 Chat feels broken — response appears suddenly with no warning
+- **Effort:** 2 hours
+
+---
+
+#### ISSUE #9: Timeout Warning Has No Cancel Button
+- **Location:** `frontend/src/components/3-organisms/SystemLog.vue` (line 157-160)
+- **Severity:** 🔴 CRITICAL
+- **Description:** Shows "Taking longer than usual..." but user can't cancel
+- **Problem:** User is stuck waiting, no way to stop stuck chat request
+- **Fix Needed:** Add "❌ Cancel Request" button
+- **Impact:** 🔴 Chat becomes unresponsive — user trapped
+- **Effort:** 2 hours
+
+---
+
+#### ISSUE #10: Status History Not Reset Between Chat Queries
+- **Location:** `frontend/src/components/3-organisms/SystemLog.vue` (line 185)
+- **Severity:** 🔴 CRITICAL
+- **Description:** Shows old processing steps from previous queries
+- **Problem:** Confusing — mixes old + new status in same chat
+- **Fix Needed:** Clear history when aiState changes to THINKING
+- **Impact:** 🔴 Chat confusing — user sees mixed status from old queries
+- **Effort:** 1 hour
+
+---
+
+#### ISSUE #11: Timer Interval Causes Memory Leak in Chat
+- **Location:** `frontend/src/components/3-organisms/SystemLog.vue` (lines 188-196)
+- **Severity:** 🔴 CRITICAL
+- **Description:** Timer keeps running after response arrives
+- **Problem:** Multiple queries = multiple timers running = performance degrades
+- **Fix Needed:** Cleanup interval in watch + onUnmounted
+- **Impact:** 🔴 Chat becomes sluggish over time — performance issue
+- **Effort:** 1 hour
+
+---
+
+#### ISSUE #12: Missing STREAMING State in Chat State Machine
+- **Location:** `frontend/src/views/HomeView.vue`
+- **Severity:** 🔴 CRITICAL
+- **Description:** State machine incomplete (STANDBY → THINKING → ??? → Response)
+- **Problem:** Gap in state transitions during chat response arrival
+- **Fix Needed:** Add STREAMING state between THINKING and SPEAKING
+- **Impact:** 🔴 Chat state unclear — can't show streaming feedback
+- **Effort:** 1 hour
+
+---
+
+#### ISSUE #5: No Frontend Feedback on Chat Sync Status
+- **Location:** `frontend/src/views/HomeView.vue`, `backend/app/api/sync_routes.py`
+- **Severity:** 🔴 CRITICAL
+- **Description:** User triggers sync (for chat knowledge) but gets NO feedback
+- **Problem:** User doesn't know if chat knowledge base synced or why sync failed
+- **Fix Needed:** WebSocket callback with sync completion + error details
+- **Impact:** 🔴 Chat knowledge hidden — user can't see what docs are synced
+- **Effort:** 6 hours
+
+---
+
+### ========== SECTION 2: ERROR HANDLING GAPS (PRIORITY #2) ==========
 
 **Status:** ❌ ZERO GRACEFUL ERROR HANDLING  
 **Impact:** User is blind to failures  
