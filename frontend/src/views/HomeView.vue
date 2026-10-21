@@ -2024,8 +2024,9 @@ const clearChatHistory = async () => {
   }
 };
 
-const formatCitationDisplay = (sourceName: string) => {
-  let displayName = sourceName.replace('.txt', '');
+const formatCitationDisplay = (sourceName: string | null | undefined) => {
+  if (!sourceName) return '[Unknown Source]';
+  let displayName = (sourceName ?? '').replace('.txt', '');
   if (displayName.startsWith('confluence_page_')) {
     displayName = displayName.replace('confluence_page_', '');
     displayName = displayName.replace(/_\d+$/, ''); // Strips the pageId at the end
@@ -2220,16 +2221,18 @@ watch(receivedMessages, (newMessages) => {
   if (lastMsg.includes('[TOKENS:')) {
     const tokenMatch = lastMsg.match(/\[TOKENS:\s*(\d+),(\d+)\]/i);
     if (tokenMatch) {
-      const input = parseInt(tokenMatch[1] || '0', 10);
-      const output = parseInt(tokenMatch[2] || '0', 10);
-      sessionTokens.value.input += input;
-      sessionTokens.value.output += output;
-      sessionTokens.value.total += (input + output);
+      const input = parseInt(tokenMatch?.[1] ?? '0', 10);
+      const output = parseInt(tokenMatch?.[2] ?? '0', 10);
+      if (sessionTokens.value) {
+        sessionTokens.value.input += input;
+        sessionTokens.value.output += output;
+        sessionTokens.value.total += (input + output);
 
-      // Calculate exact Gemini 2.5 Flash pricing:
-      // Input: $0.075 / 1,000,000 tokens
-      // Output: $0.30 / 1,000,000 tokens
-      sessionCost.value = (sessionTokens.value.input * 0.000000075) + (sessionTokens.value.output * 0.00000030);
+        // Calculate exact Gemini 2.5 Flash pricing:
+        // Input: $0.075 / 1,000,000 tokens
+        // Output: $0.30 / 1,000,000 tokens
+        sessionCost.value = (sessionTokens.value.input * 0.000000075) + (sessionTokens.value.output * 0.00000030);
+      }
       // log: FinOps cost meter updated with total tokens and estimated cost
     }
     // Strip metadata from visual log bubble
