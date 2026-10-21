@@ -1266,10 +1266,10 @@ const createSession = async () => {
   const existingEmpty = savedSessions.value.find(s => s.title === 'New Session');
   if (existingEmpty) {
     if (existingEmpty.session_id === activeSessionId.value) {
-      console.info("Already inside an active empty session. Ignoring redundant creation request.");
+      // log: "Already inside an active empty session. Ignoring redundant creation request.");
       return; // Do nothing!
     } else {
-      console.info(`Unused 'New Session' [${existingEmpty.session_id}] already exists. Redirecting user to prevent DB bloat.`);
+      // log: Unused 'New Session' already exists, redirecting user
       await switchSession(existingEmpty.session_id);
       return;
     }
@@ -1587,7 +1587,7 @@ const triggerLockedScrollCascade = () => {
 const saveOnboardingSettings = () => {
   // Guardrail: Non-admins save strictly to local browser memory to prevent overwriting global database settings! 
   if (!isAdmin.value) {
-    console.info("Onboarding: Guest user detected. Saving directives locally to browser memory to protect admin settings.");
+    // log: "Onboarding: Guest user detected. Saving directives locally to browser memory to protect admin settings.");
     localStorage.setItem('vision_custom_directives', onboardingDirectives.value);
     localStorage.setItem('vision_onboarding_completed', 'true');
     showOnboardingModal.value = false;
@@ -1730,7 +1730,7 @@ const handleFolderSelect = (event: Event) => {
         attachedFolderSize.value += file.size;
       }
     }
-    console.info(`[FINOPS INGEST] Captured: ${attachedFolderFiles.value.length} files inside ${attachedFolderName.value} | Skipped: ${skippedCount} build/binary files (Saved 99% token costs!)`);
+    // log: FINOPS INGEST captured files, skipped build/binary files
   }
 };
 
@@ -1909,13 +1909,13 @@ const submitText = async () => {
       });
 
       try {
-        console.info("Vectorizing and indexing documents into local ChromaDB...");
+        // log: "Vectorizing and indexing documents into local ChromaDB...");
         const res = await fetch(`${REST_BASE_URL}/api/upload`, {
           method: 'POST',
           body: formData
         });
         const data = await res.json();
-        console.info("ChromaDB Indexing completed successfully:", data);
+        // log: "ChromaDB Indexing completed successfully:", data);
 
         // Check if any file was blocked by DLP Security policies
         if (data && data.results) {
@@ -2010,14 +2010,14 @@ const clearChatHistory = async () => {
   sessionTokens.value = { input: 0, output: 0, total: 0 }; // Reset FinOps Token meter
   sessionCost.value = 0.0; // Reset FinOps Cost meter
   interruptAudio(); // Instantly stop any speaking speech or active generation thinking state!
-  console.info("New conversation initialized cleanly inside local UI stream.");
+  // log: "New conversation initialized cleanly inside local UI stream.");
 
   try {
-    console.info("Purging relational logs and active AI context memory on backend...");
+    // log: "Purging relational logs and active AI context memory on backend...");
     await fetch(`${REST_BASE_URL}/api/history`, {
       method: 'DELETE'
     });
-    console.info("Backend session database successfully purged in background.");
+    // log: "Backend session database successfully purged in background.");
   } catch (err) {
     // error: "Failed to purge backend session history (offline/timeout):", err);
   }
@@ -2091,7 +2091,7 @@ const optimizeCurrentPrompt = async () => {
 
   isOptimizing.value = true;
   try {
-    console.info("Optimizing raw prompt using backend LLM optimizer...");
+    // log: "Optimizing raw prompt using backend LLM optimizer...");
     const res = await fetch(`${REST_BASE_URL}/api/optimize_prompt`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2100,7 +2100,7 @@ const optimizeCurrentPrompt = async () => {
     const data = await res.json();
     if (data.status === 'success' && data.optimized) {
       textInput.value = data.optimized;
-      console.info("Prompt optimized successfully!");
+      // log: "Prompt optimized successfully!");
     }
   } catch (err) {
     // error: "Failed to optimize prompt:", err);
@@ -2229,7 +2229,7 @@ watch(receivedMessages, (newMessages) => {
       // Input: $0.075 / 1,000,000 tokens
       // Output: $0.30 / 1,000,000 tokens
       sessionCost.value = (sessionTokens.value.input * 0.000000075) + (sessionTokens.value.output * 0.00000030);
-      console.info(`FinOps Cost Meter Updated: Total Session Tokens: ${sessionTokens.value.total}. Est. Cost: $${sessionCost.value.toFixed(5)}`);
+      // log: FinOps cost meter updated with total tokens and estimated cost
     }
     // Strip metadata from visual log bubble
     newMessages[index] = lastMsg.replace(/\[TOKENS:\s*(\d+),(\d+)\]/i, '').trim();
@@ -2244,7 +2244,7 @@ watch(receivedMessages, (newMessages) => {
       // Strip metadata from visual log bubble
       newMessages[index] = lastMsg.replace(/\[SOURCE:\s*(AUTO|INTERNAL|WEB|BOTH|CHAT)\]/i, '').trim();
       lastMsg = newMessages[index];
-      console.info(`Agentic Router: Query dynamically routed via [${currentRouteReason.value}] channel.`);
+      // log: Agentic router dynamically routed query via intent channel
     }
   }
 

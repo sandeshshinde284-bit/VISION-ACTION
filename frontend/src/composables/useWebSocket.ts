@@ -27,7 +27,7 @@ export function useWebSocket() {
 
     // Automatically wait 3 seconds, then attempt to reconnect silently in the background
     reconnectTimeout = setTimeout(() => {
-      console.info("V.I.S.I.O.N. Link offline. Attempting automatic background reconnection...");
+      // log: "V.I.S.I.O.N. Link offline. Attempting automatic background reconnection...");
       connectionStatus.value = 'Reconnecting...';
       isInitialized = false; // Release lock so connect() can instantiate socket
       connect(lastSessionId.value, lastAdminName.value);
