@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Query, Request
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Query, Request, Depends
 from app.core.config import settings
 from app.services.db_service import db_service
 from app.services.security_service import security_service
@@ -6,6 +6,7 @@ from app.api.schemas import (
     SyncPageRequest, SyncDeltaRequest, SyncWorkitemRequest,
     SyncFullRefreshRequest, SyncResponse
 )
+from app.api.security_middleware import verify_admin_token
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 import logging
@@ -46,25 +47,30 @@ def require_admin():
 
 @router.post("/confluence/page/{page_id}", response_model=SyncResponse)
 @limiter.limit("20/hour")
-async def sync_single_confluence_page(request: Request, page_id: str, background_tasks: BackgroundTasks, sync_req: SyncPageRequest = None):
+async def sync_single_confluence_page(
+    request: Request,
+    page_id: str,
+    background_tasks: BackgroundTasks,
+    sync_req: SyncPageRequest = None,
+    current_admin: dict = Depends(verify_admin_token)
+):
     """
     Manually trigger synchronization of a single Confluence page by ID.
     Executes in background to avoid timeout.
-    
-    # Requires admin authentication
-    # Rate limited to 20 syncs per hour
-    
+
+    🔐 Requires admin authentication via Bearer token
+    ⏱️ Rate limited to 20 syncs per hour
+
     Args:
-        page_id (str): The Confluence page ID to sync
-    
+        page_id (str): The Confluence page ID to sync (numeric only)
+
     Returns:
         {"status": "queued", "page_id": page_id}
-    
-    Example:
+
+    Example (with auth):
         POST /api/sync/confluence/page/5475763080
+        Authorization: Bearer <jwt_token>
     """
-    # # Check admin authorization
-    require_admin()
     
     if not page_id or not page_id.isdigit():
         raise HTTPException(status_code=400, detail="Invalid page_id format")
@@ -87,26 +93,26 @@ async def sync_single_confluence_page(request: Request, page_id: str, background
 async def sync_recent_confluence(
     request: Request,
     minutes: int = Query(30, ge=1, le=1440),
-    background_tasks: BackgroundTasks = None
+    background_tasks: BackgroundTasks = None,
+    current_admin: dict = Depends(verify_admin_token)
 ):
     """
     Manually trigger incremental synchronization of recently modified Confluence pages.
     Scans pages modified in the last N minutes.
-    
-    # Requires admin authentication
-    # Rate limited to 5 syncs per hour
-    
+
+    🔐 Requires admin authentication via Bearer token
+    ⏱️ Rate limited to 5 syncs per hour
+
     Args:
         minutes (int): Look-back window in minutes (1-1440, default 30)
-    
+
     Returns:
         {"status": "queued", "minutes": minutes}
-    
-    Example:
+
+    Example (with auth):
         POST /api/sync/confluence/delta?minutes=60
+        Authorization: Bearer <jwt_token>
     """
-    # # Check admin authorization
-    require_admin()
     
     if not settings.CONFLUENCE_URL or not settings.CONFLUENCE_PAT:
         raise HTTPException(status_code=503, detail="Confluence not configured")
@@ -123,25 +129,29 @@ async def sync_recent_confluence(
 
 @router.post("/ado/workitem/{item_id}")
 @limiter.limit("20/hour")
-async def sync_single_ado_workitem(request: Request, item_id: str, background_tasks: BackgroundTasks):
+async def sync_single_ado_workitem(
+    request: Request,
+    item_id: str,
+    background_tasks: BackgroundTasks,
+    current_admin: dict = Depends(verify_admin_token)
+):
     """
     Manually trigger synchronization of a single Azure DevOps work item by ID.
     Executes in background to avoid timeout.
-    
-    # Requires admin authentication
-    # Rate limited to 20 syncs per hour
-    
+
+    🔐 Requires admin authentication via Bearer token
+    ⏱️ Rate limited to 20 syncs per hour
+
     Args:
-        item_id (str): The ADO work item ID to sync
-    
+        item_id (str): The ADO work item ID to sync (numeric only)
+
     Returns:
         {"status": "queued", "item_id": item_id}
-    
-    Example:
+
+    Example (with auth):
         POST /api/sync/ado/workitem/59912
+        Authorization: Bearer <jwt_token>
     """
-    # # Check admin authorization
-    require_admin()
     
     if not item_id or not item_id.isdigit():
         raise HTTPException(status_code=400, detail="Invalid item_id format")
@@ -164,26 +174,26 @@ async def sync_single_ado_workitem(request: Request, item_id: str, background_ta
 async def sync_recent_ado(
     request: Request,
     days: int = Query(7, ge=1, le=180),
-    background_tasks: BackgroundTasks = None
+    background_tasks: BackgroundTasks = None,
+    current_admin: dict = Depends(verify_admin_token)
 ):
     """
     Manually trigger incremental synchronization of recently updated ADO work items.
     Scans items modified in the last N days.
-    
-    # Requires admin authentication
-    # Rate limited to 5 syncs per hour
-    
+
+    🔐 Requires admin authentication via Bearer token
+    ⏱️ Rate limited to 5 syncs per hour
+
     Args:
         days (int): Look-back window in days (1-180, default 7)
-    
+
     Returns:
         {"status": "queued", "days": days}
-    
-    Example:
+
+    Example (with auth):
         POST /api/sync/ado/delta?days=14
+        Authorization: Bearer <jwt_token>
     """
-    # # Check admin authorization
-    require_admin()
     
     if not settings.ADO_URL or not settings.ADO_PAT:
         raise HTTPException(status_code=503, detail="Azure DevOps not configured")
@@ -301,18 +311,24 @@ async def sync_health_check():
 
 
 @router.post("/full-refresh")
-async def trigger_full_knowledge_base_refresh(background_tasks: BackgroundTasks):
+async def trigger_full_knowledge_base_refresh(
+    background_tasks: BackgroundTasks,
+    current_admin: dict = Depends(verify_admin_token)
+):
     """
     Triggers a complete re-sync of all Confluence pages in the configured space(s).
-    WARNING: This is expensive and may take several minutes.
-    
+    ⚠️ WARNING: This is expensive and may take several minutes.
+
+    🔐 Requires admin authentication via Bearer token
+
     Returns:
         {"status": "queued", "operation": "full_refresh"}
-    
-    Example:
+
+    Example (with auth):
         POST /api/sync/full-refresh
+        Authorization: Bearer <jwt_token>
     """
-    logger.warning(f"Full knowledge base refresh initiated - this may take several minutes")
+    logger.warning(f"Full knowledge base refresh initiated by {current_admin['admin_name']} - this may take several minutes")
     
     async def run_full_sync():
         try:

@@ -178,8 +178,7 @@ def trigger_sync_endpoint(background_tasks: BackgroundTasks, minutes: int = 180)
             # But if any space is currently locked, we reject the global sync trigger.
             with db_service._get_connection() as conn:
                 cursor = conn.cursor()
-                p = db_service.placeholder
-                cursor.execute(f"SELECT is_syncing FROM config_sync WHERE target_type = {p} AND target_key = {p}", ("CONFLUENCE_SPACE", space))
+                cursor.execute("SELECT is_syncing FROM config_sync WHERE target_type = ? AND target_key = ?", ("CONFLUENCE_SPACE", space))
                 row = cursor.fetchone()
                 if row and row[0] in [1, True, "TRUE", "1"]:
                     raise HTTPException(status_code=409, detail=f"Sync already in progress for space '{space}'. Please wait.")
@@ -210,8 +209,7 @@ def trigger_confluence_sync_endpoint(background_tasks: BackgroundTasks, minutes:
         for space in active_spaces:
             with db_service._get_connection() as conn:
                 cursor = conn.cursor()
-                p = db_service.placeholder
-                cursor.execute(f"SELECT is_syncing FROM config_sync WHERE target_type = {p} AND target_key = {p}", ("CONFLUENCE_SPACE", space))
+                cursor.execute("SELECT is_syncing FROM config_sync WHERE target_type = ? AND target_key = ?", ("CONFLUENCE_SPACE", space))
                 row = cursor.fetchone()
                 if row and row[0] in [1, True, "TRUE", "1"]:
                     raise HTTPException(status_code=409, detail=f"Sync already in progress for space '{space}'. Please wait.")

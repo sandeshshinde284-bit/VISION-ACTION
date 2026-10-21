@@ -9,14 +9,16 @@
 # to enforce corporate sandboxing guidelines.
 # ============================================================================
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, status
+from fastapi import APIRouter, UploadFile, File, HTTPException, status, Depends
 from app.services.rag_service import rag_service # Local ChromaDB/Embedding engine
 from app.core.config import settings
+from app.api.security_middleware import verify_user_token
 import hashlib
 import time
 import logging
 import os
 import shutil
+import re
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -49,32 +51,74 @@ def _check_rate_limit(client_id: str) -> bool:
         _upload_rate_tracker[client_id] = [t for t in _upload_rate_tracker[client_id] if now - t < RATE_LIMIT_WINDOW]
     else:
         _upload_rate_tracker[client_id] = []
-        
+
     if len(_upload_rate_tracker[client_id]) >= MAX_UPLOADS_PER_WINDOW:
         return False
-        
+
     _upload_rate_tracker[client_id].append(now)
     return True
 
+
+def _is_safe_filename(filename: str) -> bool:
+    """
+    🛡️ SECURITY: Validate filenames to prevent directory traversal and injection attacks.
+
+    Rules:
+    - Must contain alphanumeric, dots, hyphens, underscores only
+    - Cannot contain path separators (/ or \)
+    - Cannot be empty
+    - Max 255 characters
+    """
+    if not filename or len(filename) > 255:
+        return False
+
+    # Block path traversal attempts
+    if ".." in filename or "/" in filename or "\\" in filename:
+        return False
+
+    # Allow: alphanumeric, dots, hyphens, underscores
+    # Pattern: filename.extension
+    allowed_pattern = r'^[a-zA-Z0-9._-]+$'
+    return bool(re.match(allowed_pattern, filename))
+
 @router.post("/api/upload", tags=["Knowledge Ingestion"])
-async def upload_documents(files: list[UploadFile] = File(...)):
+async def upload_documents(
+    files: list[UploadFile] = File(...),
+    current_user: dict = Depends(verify_user_token)
+):
     """
-    Receives an array of multipart corporate documents, saves them to a secure temp 
+    Receives an array of multipart corporate documents, saves them to a secure temp
     directory, embeds them into ChromaDB, and purges the raw files right after indexing.
+
+    🔐 Requires authentication via Bearer token
+    ⏱️ Rate limited to 5 uploads per minute
+
+    Supported formats: PDF, DOCX, TXT
+    Max file size: 15MB per file
+
+    Example (with auth):
+        POST /api/upload
+        Authorization: Bearer <jwt_token>
+        Content-Type: multipart/form-data
     """
-    #: Rate Limiting
-    # For now, we use a generic string. In a real app, pull Request IP or Session UUID.
-    client_id = "generic_upload_client" 
+    # Rate Limiting - Use authenticated user ID
+    client_id = current_user.get("admin_name", "unknown_user")
     if not _check_rate_limit(client_id):
-        logger.warning("Upload Rate Limit Exceeded! Dropping incoming connections to prevent Queue DoS.")
+        logger.warning(f"Upload Rate Limit Exceeded for user {client_id}!")
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many files uploaded recently. Please wait a minute.")
 
     ingestion_results = []
-    logger.info(f"Incoming REST upload request. Total files: {len(files)}")
+    logger.info(f"Upload request from {client_id}. Total files: {len(files)}")
 
     for file in files:
         filename = file.filename
-        logger.info(f"Preparing to process: [{filename}]")
+
+        # 🛡️ SECURITY: Validate filename - prevent directory traversal & malicious names
+        if not _is_safe_filename(filename):
+            logger.warning(f"SECURITY: Blocked unsafe filename: {filename}")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid filename: {filename}")
+
+        logger.info(f"Preparing to process: [{filename}] for user {client_id}")
 
         # Create unique absolute secure temp path
         temp_file_path = os.path.join(TEMP_UPLOAD_DIR, filename)

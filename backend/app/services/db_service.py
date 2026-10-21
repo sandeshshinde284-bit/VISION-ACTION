@@ -332,10 +332,11 @@ class DatabaseService:
                     p = "%s" if settings.DATABASE_TARGET == "CLOUD" else "?"
                     for space in default_spaces:
                         # Safely check if this space target already exists in the config_sync registry
-                        cursor.execute(f"SELECT COUNT(*) FROM config_sync WHERE target_type = {p} AND target_key = {p}", ("CONFLUENCE_SPACE", space))
+                        cursor.execute("SELECT COUNT(*) FROM config_sync WHERE target_type = ? AND target_key = ?", ("CONFLUENCE_SPACE", space))
                         if cursor.fetchone()[0] == 0:
                             # If it is a brand-new space, append it cleanly as active!
-                            cursor.execute(f"INSERT INTO config_sync (target_type, target_key, is_active) VALUES ({p}, {p}, {'TRUE' if p == '%s' else '1'})", ("CONFLUENCE_SPACE", space))
+                            is_active_val = 'TRUE' if settings.DATABASE_TARGET == "CLOUD" else '1'
+                            cursor.execute(f"INSERT INTO config_sync (target_type, target_key, is_active) VALUES ({p}, {p}, {is_active_val})", ("CONFLUENCE_SPACE", space))
                             logger.info(f"Database Config: Dynamically appended new space target [{space}] from environment on boot.")
 
                 # Execute migration to append session_id if missing on messages table
@@ -358,7 +359,7 @@ class DatabaseService:
                 if cursor.fetchone()[0] == 0:
                     logger.info("Auto-seeding default chat session.")
                     p = "%s" if settings.DATABASE_TARGET == "CLOUD" else "?"
-                    cursor.execute(f"INSERT INTO chat_sessions (session_id, title, admin_name) VALUES ({p}, {p}, {p})", ("default_session", "Default Session", "admin"))
+                    cursor.execute(f"INSERT INTO chat_sessions (session_id, title, admin_name) VALUES ({p}, {p}, {p})", ("default_session", "Default Session", settings.DEFAULT_ADMIN_NAME or "admin"))
 
                 # Create and seed the strict 'users' table schema
                 p = "%s" if settings.DATABASE_TARGET == "CLOUD" else "?"
@@ -514,10 +515,10 @@ class DatabaseService:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
                 # Ensure the session exists in chat_sessions to satisfy foreign key constraints
-                cursor.execute(f"SELECT COUNT(*) FROM chat_sessions WHERE session_id = {p}", (session_id,))
+                cursor.execute("SELECT COUNT(*) FROM chat_sessions WHERE session_id = ?", (session_id,))
                 if cursor.fetchone()[0] == 0:
                     cursor.execute(f"INSERT INTO chat_sessions (session_id, title, admin_name) VALUES ({p}, {p}, {p})", (session_id, "New Session", admin_name))
-                
+
                 # Insert the message tuple
                 cursor.execute(f"""
                     INSERT INTO messages (sender, text, admin_name, session_id)
@@ -599,9 +600,9 @@ class DatabaseService:
                     cursor.execute("PRAGMA foreign_keys = ON;")
                 
                 # Deleting the session row
-                cursor.execute(f"DELETE FROM chat_sessions WHERE session_id = {p} AND admin_name = {p}", (session_id, admin_name))
+                cursor.execute("DELETE FROM chat_sessions WHERE session_id = ? AND admin_name = ?", (session_id, admin_name))
                 # Explicitly delete associated messages in the same transaction to guarantee 100% orphan cleanup
-                cursor.execute(f"DELETE FROM messages WHERE session_id = {p} AND admin_name = {p}", (session_id, admin_name))
+                cursor.execute("DELETE FROM messages WHERE session_id = ? AND admin_name = ?", (session_id, admin_name))
                 
                 conn.commit()
                 logger.info(f"Purged session {session_id} and all its messages for {admin_name}.")
@@ -617,13 +618,13 @@ class DatabaseService:
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute(f"""
+                cursor.execute("""
                     SELECT sender, text, admin_name FROM (
-                        SELECT id, sender, text, admin_name FROM messages 
-                        WHERE session_id = {p} AND admin_name = {p}
-                        ORDER BY id DESC LIMIT {limit}
+                        SELECT id, sender, text, admin_name FROM messages
+                        WHERE session_id = ? AND admin_name = ?
+                        ORDER BY id DESC LIMIT ?
                     ) sub ORDER BY id ASC
-                """, (session_id, admin_name))
+                """, (session_id, admin_name, limit))
                 rows = cursor.fetchall()
                 for sender, text, row_admin_name in rows:
                     history.append({
