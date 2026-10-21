@@ -75,7 +75,7 @@ export function useWebSocket() {
           const match = data.match(/\[SYSTEM_SESSION_RENAME:\s*(.*?):(.*?)\]/i);
           if (match && match[2]) {
             // Session was renamed to match[2]
-            console.log("Session renamed to:", match[2]);
+            // log: "Session renamed to:", match[2]);
             activeSessionTitle.value = match[2];
           }
           return; // Do not append to chat!
@@ -154,7 +154,7 @@ export function useWebSocket() {
 
         } catch {
           // Fallback if data is not JSON (legacy support)
-          console.warn("WebSocket received non-JSON frame, falling back to legacy parsing:", data);
+          // warn: "WebSocket received non-JSON frame, falling back to legacy parsing:", data);
           
           const isEndMarker = data.includes('[SOURCE:') || 
                              data.includes('[TOKENS:') || 

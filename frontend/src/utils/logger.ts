@@ -108,9 +108,9 @@ class Logger {
       const style = this.getColorForLevel(level);
 
       if (data || error) {
-        console.log(formatted, style, { data, error });
+        // log: formatted, style, { data, error });
       } else {
-        console.log(formatted, style);
+        // log: formatted, style);
       }
     }
 

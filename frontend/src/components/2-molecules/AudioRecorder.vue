@@ -127,7 +127,7 @@ const startSession = async () => {
     };
     checkVolume();
   } catch (err) {
-    console.error("VAD Error:", err);
+    // error: "VAD Error:", err);
   }
 };
 

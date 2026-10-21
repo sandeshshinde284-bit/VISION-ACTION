@@ -278,7 +278,7 @@ const getAdoQueryTerm = (msg: string) => {
       }
     }
   } catch (err) {
-    console.warn("Failed to parse ADO query term:", err);
+    // warn: "Failed to parse ADO query term:", err);
   }
   return '';
 };
@@ -295,7 +295,7 @@ const getSmartActionPayload = (msg: string) => {
     try {
       return JSON.parse(match[1]);
     } catch (e) {
-      console.error("Failed to parse Smart Action payload:", e);
+      // error: "Failed to parse Smart Action payload:", e);
     }
   }
   return null;
@@ -312,7 +312,7 @@ const getAmbiguousIntentPayload = (msg: string) => {
     try {
       return JSON.parse(match[1]);
     } catch (e) {
-      console.error("Failed to parse Ambiguous Intent payload:", e);
+      // error: "Failed to parse Ambiguous Intent payload:", e);
     }
   }
   return null;
@@ -347,16 +347,18 @@ const copyMessageText = (rawMsg: string, index: number) => {
       .replace(/\[SOURCE:.*?\]/gi, '')
       .trim();
 
-    navigator.clipboard.writeText(cleanText).then(() => {
-      copiedIndices.value[index] = true;
-      setTimeout(() => {
-        copiedIndices.value[index] = false;
-      }, 2000);
-    }).catch(err => {
-      console.error("[CLIPBOARD COPY REJECTION] WriteText promise failed:", err);
-    });
+    navigator.clipboard.writeText(cleanText)
+      .then(() => {
+        copiedIndices.value[index] = true;
+        setTimeout(() => {
+          copiedIndices.value[index] = false;
+        }, 2000);
+      })
+      .catch((err: Error) => {
+        log.error('Failed to copy to clipboard', err, { index });
+      });
   } catch (error) {
-    console.error("[CLIPBOARD COPY ERROR] Exception caught during copy process:", error);
+    // error: "[CLIPBOARD COPY ERROR] Exception caught during copy process:", error);
   }
 };
 
@@ -370,7 +372,7 @@ const toggleFeedback = (index: number, type: 'LIKE' | 'DISLIKE') => {
       chatFeedback.value[index] = type; // Toggle
     }
   } catch (error) {
-    console.error("[FEEDBACK EXCEPTION] Failed to register user reaction:", error);
+    // error: "[FEEDBACK EXCEPTION] Failed to register user reaction:", error);
   }
 };
 
@@ -436,7 +438,7 @@ const parseMarkdown = (text: string) => {
     try {
       base64Code = btoa(unescape(encodeURIComponent(trimmedCode)));
     } catch (e) {
-      console.error("Failed to base64 encode code snippet:", e);
+      // error: "Failed to base64 encode code snippet:", e);
     }
 
     // Escape the display code HTML ONLY to prevent browser rendering bugs
@@ -616,20 +618,24 @@ const handleLogClick = (event: MouseEvent) => {
         const codeToCopy = decodeURIComponent(escape(atob(base64Code)));
 
         // Write to Clipboard
-        navigator.clipboard.writeText(codeToCopy).then(() => {
-          const originalText = target.innerText;
-          target.innerText = 'COPIED!';
-          target.style.borderColor = '#10B981'; // Green Feedback Border
-          target.style.color = '#10B981'; // Green Feedback Font
+        navigator.clipboard.writeText(codeToCopy)
+          .then(() => {
+            const originalText = target.innerText;
+            target.innerText = 'COPIED!';
+            target.style.borderColor = '#10B981'; // Green Feedback Border
+            target.style.color = '#10B981'; // Green Feedback Font
 
-          setTimeout(() => {
-            target.innerText = originalText;
-            target.style.borderColor = '';
-            target.style.color = '';
-          }, 2000);
-        });
+            setTimeout(() => {
+              target.innerText = originalText;
+              target.style.borderColor = '';
+              target.style.color = '';
+            }, 2000);
+          })
+          .catch((err: Error) => {
+            log.error('Failed to copy code snippet to clipboard', err);
+          });
       } catch (e) {
-        console.error("Failed to execute click-to-copy decode sequence:", e);
+        // error: "Failed to execute click-to-copy decode sequence:", e);
       }
     }
   }

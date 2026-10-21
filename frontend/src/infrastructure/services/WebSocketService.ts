@@ -121,7 +121,7 @@ export class WebSocketService implements IWebSocketService {
     };
 
     this.socket.onerror = (error) => {
-      console.error("WebSocket error: ", error);
+      // error: "WebSocket error: ", error);
       onError();
     };
   }
@@ -133,7 +133,7 @@ export class WebSocketService implements IWebSocketService {
       if (this.onStateChange) this.onStateChange('THINKING');
       this.socket.send(message);
     } else {
-      console.error("Cannot send message: WebSocket is not connected.");
+      // error: "Cannot send message: WebSocket is not connected.");
     }
   }
 
@@ -150,7 +150,7 @@ sendAudio(data: Blob): void {
     if (this.onStateChange) this.onStateChange('THINKING');
     this.socket.send(data);
   } else {
-    console.error("Cannot send audio: WebSocket is not connected.");
+    // error: "Cannot send audio: WebSocket is not connected.");
   }
 }
 

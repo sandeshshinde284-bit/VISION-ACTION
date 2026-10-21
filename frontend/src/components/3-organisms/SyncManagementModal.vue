@@ -156,7 +156,7 @@ async function loadSyncData() {
         refreshError.value = false
         refreshAttempts.value = 0
       } else {
-        console.error('Invalid API response structure:', data)
+        // error: 'Invalid API response structure:', data)
         refreshError.value = true
         refreshAttempts.value += 1
       }
@@ -182,7 +182,7 @@ async function loadSyncData() {
       syncHistory.value = await histRes.json()
     }
   } catch (error) {
-    console.error('Failed to load sync data:', error)
+    // error: 'Failed to load sync data:', error)
     refreshError.value = true
     refreshAttempts.value += 1
   } finally {
@@ -249,7 +249,7 @@ async function triggerSync() {
       showError(`Sync failed: ${error.detail || 'Unknown error'}`)
     }
   } catch (error) {
-    console.error('Failed to trigger sync:', error)
+    // error: 'Failed to trigger sync:', error)
     showError('Failed to trigger sync. Check browser console for details.')
   } finally {
     isSyncing.value = false

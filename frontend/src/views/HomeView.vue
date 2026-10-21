@@ -1251,7 +1251,7 @@ const loadSessions = async () => {
       if (current) sessionTitle.value = current.title;
     }
   } catch (err) {
-    console.error("Failed to load dialogue sessions:", err);
+    // error: "Failed to load dialogue sessions:", err);
   }
 };
 
@@ -1298,7 +1298,7 @@ const createSession = async () => {
       await switchSession(newSessionId);
     }
   } catch (err) {
-    console.error("Failed to create new session row:", err);
+    // error: "Failed to create new session row:", err);
   }
 };
 
@@ -1329,7 +1329,7 @@ const switchSession = async (sessionId: string) => {
       triggerLockedScrollCascade(); // Force scroll-lock cascade on session switch!
     }
   } catch (err) {
-    console.error("Failed to fetch session chat history:", err);
+    // error: "Failed to fetch session chat history:", err);
   }
 
   // 2. Perform safe WebSocket Close & Reconnect (Option A - Hardened)
@@ -1367,7 +1367,7 @@ const saveSessionRename = async (sessionId: string) => {
       if (activeSessionId.value === sessionId) sessionTitle.value = sessionRenameTitle.value;
     }
   } catch (err) {
-    console.error("Failed to rename session:", err);
+    // error: "Failed to rename session:", err);
   } finally {
     editingSessionId.value = null;
   }
@@ -1390,7 +1390,7 @@ const deleteSession = async (sessionId: string) => {
       await loadSessions();
     }
   } catch (err) {
-    console.error("Failed to delete chat session:", err);
+    // error: "Failed to delete chat session:", err);
   }
 };
 
@@ -1459,7 +1459,7 @@ const openTelemetryModal = async () => {
       };
     }
   } catch (err: any) {
-    console.error("Failed to fetch administrative telemetry:", err);
+    // error: "Failed to fetch administrative telemetry:", err);
     // Gracefully show the actual network connection error on the screen!
     telemetryData.value = {
       database_status: `Error: Failed to reach backend API (${err.message || err})`,
@@ -1606,13 +1606,15 @@ const saveOnboardingSettings = () => {
   .then(res => res.json())
   .then(data => {
     if (data.status === 'success') {
-      console.info("Onboarding: AI instructions reloaded on backend successfully.");
+      log.info("Onboarding: AI instructions reloaded on backend successfully.");
       customDirectives.value = onboardingDirectives.value;
       localStorage.setItem('vision_onboarding_completed', 'true');
       showOnboardingModal.value = false;
     }
   })
-  .catch(err => console.error("Onboarding: Failed to save custom system directives:", err));
+  .catch((err: Error) => {
+    log.error('Onboarding: Failed to save custom system directives', err);
+  });
 };
 
 const saveProfileSettings = () => {
@@ -1635,10 +1637,12 @@ const saveProfileSettings = () => {
   .then(res => res.json())
   .then(data => {
     if (data.status === 'success') {
-      console.info("AI instructions reloaded on backend successfully.");
+      log.info("AI instructions reloaded on backend successfully.");
     }
   })
-  .catch(err => console.error("Failed to save directives to backend:", err));
+  .catch((err: Error) => {
+    log.error('Failed to save directives to backend', err);
+  });
 
   showProfileModal.value = false;
 };
@@ -1784,7 +1788,7 @@ const handleAdoQuery = async (payload: { count: number, query: string }) => {
       receivedMessages.value.push(`Error: Could not retrieve active ADO tickets. (Reason: ${data.message || 'Unknown'})`);
     }
   } catch (err) {
-    console.error("JIT ADO live query failed:", err);
+    // error: "JIT ADO live query failed:", err);
     receivedMessages.value.push("Error: Failed to connect to the live JIT ADO search API. Please check your network and try again.");
   } finally {
     // 5. Restore the standing standby state
@@ -1921,7 +1925,7 @@ const submitText = async () => {
           }
         }
       } catch (upload_err) {
-        console.error("Failed to upload files to local RAG service:", upload_err);
+        // error: "Failed to upload files to local RAG service:", upload_err);
       } finally {
         isIndexing.value = false;
       }
@@ -2015,7 +2019,7 @@ const clearChatHistory = async () => {
     });
     console.info("Backend session database successfully purged in background.");
   } catch (err) {
-    console.error("Failed to purge backend session history (offline/timeout):", err);
+    // error: "Failed to purge backend session history (offline/timeout):", err);
   }
 };
 
@@ -2099,7 +2103,7 @@ const optimizeCurrentPrompt = async () => {
       console.info("Prompt optimized successfully!");
     }
   } catch (err) {
-    console.error("Failed to optimize prompt:", err);
+    // error: "Failed to optimize prompt:", err);
   } finally {
     isOptimizing.value = false;
   }
@@ -2162,7 +2166,7 @@ watch(receivedMessages, (newMessages) => {
                 el.innerHTML = svg;
                 el.setAttribute('data-processed', 'true');
               } catch (renderErr) {
-                console.warn("Mermaid render failed safely for block:", renderErr);
+                // warn: "Mermaid render failed safely for block:", renderErr);
                 el.innerHTML = `
                   <div class="text-xs text-rose-500 font-mono p-4 border border-rose-500/15 rounded-xl bg-rose-500/5 text-center flex flex-col items-center space-y-1 select-none">
                     <span class="font-bold uppercase tracking-wider text-[10px]">⚠️ Diagram Syntax Warning</span>
@@ -2175,7 +2179,7 @@ watch(receivedMessages, (newMessages) => {
           });
         }
       } catch (err) {
-        console.warn("Mermaid observer execution failed:", err);
+        // warn: "Mermaid observer execution failed:", err);
       }
     }, 250);
   });
@@ -2359,7 +2363,7 @@ const handleGlobalPaste = (event: ClipboardEvent) => {
           // 1. Extension Guardrail: Silently ignore invalid formats during copy-paste
           const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
           if (!ALLOWED_EXTENSIONS.includes(fileExt)) {
-            console.warn(`[CLIPBOARD BLOCK] Blocked paste of invalid file: "${file.name}" (Type: ${fileExt})`);
+            // warn: `[CLIPBOARD BLOCK] Blocked paste of invalid file: "${file.name}" (Type: ${fileExt})`);
             continue;
           }
 
@@ -2369,7 +2373,7 @@ const handleGlobalPaste = (event: ClipboardEvent) => {
       }
     }
   } catch (error) {
-    console.error("[CLIPBOARD PASTE ERROR] Critical exception caught during file ingestion:", error);
+    // error: "[CLIPBOARD PASTE ERROR] Critical exception caught during file ingestion:", error);
   }
 };
 
@@ -2407,7 +2411,7 @@ onMounted(async () => {
       triggerLockedScrollCascade(); // Force scroll-lock cascade on page boot! (Scroll Anchor)
     }
   } catch (err) {
-    console.error("Failed to load historical timeline cards on page boot:", err);
+    // error: "Failed to load historical timeline cards on page boot:", err);
   }
 
   // Load custom system directives from backend on page mount (and decouple base URLs!)
@@ -2432,7 +2436,7 @@ onMounted(async () => {
           adoDefaultProject.value = data.ado_projects.split(',')[0].trim();
         }
 
-        // Trigger onboarding modal ONLY on the very first start AND ONLY for ADMIN/Super-Admins! 
+        // Trigger onboarding modal ONLY on the very first start AND ONLY for ADMIN/Super-Admins!
         if (isAdmin.value && !localStorage.getItem('vision_onboarding_completed')) {
           showOnboardingModal.value = true;
         } else {
@@ -2441,7 +2445,9 @@ onMounted(async () => {
         }
       }
     })
-    .catch(err => console.error("Failed to load custom system directives:", err));
+    .catch((err: Error) => {
+      log.error('Failed to load custom system directives', err);
+    });
 });
 
 onUnmounted(() => {

@@ -144,7 +144,7 @@ const handleLogin = async () => {
     error.value = true;
     password.value = '';
   } catch (err) {
-    console.error("Login: Server connection failed:", err);
+    // error: "Login: Server connection failed:", err);
     error.value = true;
     password.value = '';
   }
