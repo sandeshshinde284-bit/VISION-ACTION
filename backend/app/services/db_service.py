@@ -371,7 +371,7 @@ class DatabaseService:
                             role VARCHAR(50) NOT NULL
                         )
                     """)
-                    
+
                     cursor.execute("""
                         CREATE TABLE IF NOT EXISTS user_sessions (
                             token VARCHAR(255) PRIMARY KEY,
@@ -389,7 +389,7 @@ class DatabaseService:
                             role TEXT NOT NULL
                         )
                     """)
-                    
+
                     cursor.execute("""
                         CREATE TABLE IF NOT EXISTS user_sessions (
                             token TEXT PRIMARY KEY,
@@ -399,10 +399,14 @@ class DatabaseService:
                             FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
                         )
                     """)
-                
-                # Idempotent seeding of user credentials (Preserves manually added DB users!)
+
+                # Idempotent seeding of user credentials with proper hashing
+                import hashlib
+                default_admin_password = os.getenv('DEFAULT_ADMIN_PASSWORD', 'vision@sandesh')
+                hashed_password = hashlib.sha256(default_admin_password.encode()).hexdigest()
+
                 default_users = [
-                    ("sandesh", "vision@sandesh", "ADMIN")
+                    ("sandesh", hashed_password, "ADMIN")
                 ]
                 
                 if settings.DATABASE_TARGET == "CLOUD":
