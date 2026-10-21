@@ -46,7 +46,7 @@ from slowapi.util import get_remote_address
 from app.api import websockets, uploads
 from app.services.ai_service import ai_service
 
-# --- ISSUE #C FIX: Initialize Rate Limiter ---
+# Initialize Rate Limiter ---
 limiter = Limiter(key_func=get_remote_address)
 
 # create the FASTAPI app instance
@@ -56,7 +56,7 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# --- ISSUE #C FIX: Add rate limiter to app state ---
+# Add rate limiter to app state ---
 app.state.limiter = limiter
 
 # Enable CORS for the Vue frontend (Pristine, conflict-free enterprise configuration!)
@@ -77,7 +77,7 @@ app.add_middleware(
 app.include_router(websockets.router)
 app.include_router(uploads.router)
 
-# Issue #2 Fix: Mount sync management router
+# # Mount sync management router
 from app.api import sync_routes
 app.include_router(sync_routes.router)
 

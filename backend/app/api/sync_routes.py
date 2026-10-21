@@ -18,11 +18,11 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/sync", tags=["Sync Management"])
 
-# --- ISSUE #C FIX: Initialize Rate Limiter for Sync Endpoints ---
+# Initialize Rate Limiter for Sync Endpoints ---
 limiter = Limiter(key_func=get_remote_address)
 
 # ============================================================================
-# ISSUE #A FIX: Helper function for admin authorization
+# # Helper function for admin authorization
 # ============================================================================
 
 def require_admin():
@@ -37,7 +37,7 @@ def require_admin():
         )
 
 # ============================================================================
-# ISSUE #2 FIX: Confluence Sync Endpoints
+# # Confluence Sync Endpoints
 # ============================================================================
 
 @router.post("/confluence/page/{page_id}")
@@ -47,8 +47,8 @@ async def sync_single_confluence_page(request: Request, page_id: str, background
     Manually trigger synchronization of a single Confluence page by ID.
     Executes in background to avoid timeout.
     
-    ISSUE #A FIX: Requires admin authentication
-    ISSUE #C FIX: Rate limited to 20 syncs per hour
+    # Requires admin authentication
+    # Rate limited to 20 syncs per hour
     
     Args:
         page_id (str): The Confluence page ID to sync
@@ -59,7 +59,7 @@ async def sync_single_confluence_page(request: Request, page_id: str, background
     Example:
         POST /api/sync/confluence/page/5475763080
     """
-    # ISSUE #A FIX: Check admin authorization
+    # # Check admin authorization
     require_admin()
     
     if not page_id or not page_id.isdigit():
@@ -89,8 +89,8 @@ async def sync_recent_confluence(
     Manually trigger incremental synchronization of recently modified Confluence pages.
     Scans pages modified in the last N minutes.
     
-    ISSUE #A FIX: Requires admin authentication
-    ISSUE #C FIX: Rate limited to 5 syncs per hour
+    # Requires admin authentication
+    # Rate limited to 5 syncs per hour
     
     Args:
         minutes (int): Look-back window in minutes (1-1440, default 30)
@@ -101,7 +101,7 @@ async def sync_recent_confluence(
     Example:
         POST /api/sync/confluence/delta?minutes=60
     """
-    # ISSUE #A FIX: Check admin authorization
+    # # Check admin authorization
     require_admin()
     
     if not settings.CONFLUENCE_URL or not settings.CONFLUENCE_PAT:
@@ -124,8 +124,8 @@ async def sync_single_ado_workitem(request: Request, item_id: str, background_ta
     Manually trigger synchronization of a single Azure DevOps work item by ID.
     Executes in background to avoid timeout.
     
-    ISSUE #A FIX: Requires admin authentication
-    ISSUE #C FIX: Rate limited to 20 syncs per hour
+    # Requires admin authentication
+    # Rate limited to 20 syncs per hour
     
     Args:
         item_id (str): The ADO work item ID to sync
@@ -136,7 +136,7 @@ async def sync_single_ado_workitem(request: Request, item_id: str, background_ta
     Example:
         POST /api/sync/ado/workitem/59912
     """
-    # ISSUE #A FIX: Check admin authorization
+    # # Check admin authorization
     require_admin()
     
     if not item_id or not item_id.isdigit():
@@ -166,8 +166,8 @@ async def sync_recent_ado(
     Manually trigger incremental synchronization of recently updated ADO work items.
     Scans items modified in the last N days.
     
-    ISSUE #A FIX: Requires admin authentication
-    ISSUE #C FIX: Rate limited to 5 syncs per hour
+    # Requires admin authentication
+    # Rate limited to 5 syncs per hour
     
     Args:
         days (int): Look-back window in days (1-180, default 7)
@@ -178,7 +178,7 @@ async def sync_recent_ado(
     Example:
         POST /api/sync/ado/delta?days=14
     """
-    # ISSUE #A FIX: Check admin authorization
+    # # Check admin authorization
     require_admin()
     
     if not settings.ADO_URL or not settings.ADO_PAT:

@@ -229,7 +229,7 @@ class RAGService:
                 raise ValueError("Batch embeddings generation mismatch: vectors count does not match chunks count.")
 
             # --- SQLite RAW DOCUMENT STORE SAVE (ADR-004 Parent-Document Store) ---
-            # Issue #9 FIX: Execute save ONLY after embeddings succeed to prevent invisible phantom files!
+            # Execute save ONLY after embeddings succeed to prevent invisible phantom files!
             if custom_metadata and "document_id" in custom_metadata:
                 from app.services.db_service import db_service
                 db_service.save_document(
@@ -237,8 +237,8 @@ class RAGService:
                     title=custom_metadata.get("title", filename),
                     content=text,
                     source_system=custom_metadata.get("source_system", "CONFLUENCE"),
-                    space_key=custom_metadata.get("space_key", "UNKNOWN_SPACE"), # Issue #1 FIX: Do not default to GLOBAL
-                    version=custom_metadata.get("version", 1) # Issue #10 FIX: Use dynamic version
+                    space_key=custom_metadata.get("space_key", "UNKNOWN_SPACE"), # Do not default to GLOBAL
+                    version=custom_metadata.get("version", 1) # Use dynamic version
                 )
             
             # --- LOCAL vs. CLOUD STORAGE ROUTING (ADR-004) ---
@@ -319,7 +319,7 @@ class RAGService:
         Converts user query to an embedding, executes semantic vector search with thresholds,
         and returns top-K documents. Implements fallback logic if threshold filtering yields no results.
         
-        ISSUE #B FIX: Fallback mechanism when strict thresholds return zero results.
+        # Fallback mechanism when strict thresholds return zero results.
         """
         results = []
         
@@ -339,7 +339,7 @@ class RAGService:
                 with db_service._get_connection() as conn:
                     with conn.cursor() as cursor:
                         # pgvector distance operator: <=> represents cosine distance
-                        # ISSUE #B FIX: Query ALL results, then filter in application layer for fallback logic
+                        # # Query ALL results, then filter in application layer for fallback logic
                         cursor.execute("""
                             SELECT kb.content, kb.document_id, kb.embedding <=> %s::vector AS distance, kb.source_system, kb.space_key, kb.chunk_id, d.title
                             FROM knowledge_base kb
@@ -349,7 +349,7 @@ class RAGService:
                         """, (query_vector_str, query_vector_str, top_k * 5))  # Fetch more to allow filtering + fallback
                         rows = cursor.fetchall()
 
-                        # ISSUE #B FIX: Apply strict threshold filtering with fallback
+                        # # Apply strict threshold filtering with fallback
                         strict_threshold = settings.RAG_DISTANCE_THRESHOLD  # 0.60 (60% similarity)
                         fallback_threshold = settings.RAG_DISTANCE_THRESHOLD + 0.15  # 0.75 (25% similarity) if needed
 
@@ -368,7 +368,7 @@ class RAGService:
                                     },
                                     "distance": distance
                                 })
-                            # ISSUE #B FIX: If strict results are empty, use fallback threshold
+                            # # If strict results are empty, use fallback threshold
                             elif len(results) == 0 and distance <= fallback_threshold:
                                 results.append({
                                     "text": row[0],
@@ -424,7 +424,7 @@ class RAGService:
                         where_filter = {"$or": filters}
                     logger.info(f"Metadata pre-filtering active. Restricted search space to: {where_filter}")
 
-                # ISSUE #B FIX: Fetch more results to enable fallback filtering
+                # # Fetch more results to enable fallback filtering
                 search_results = self.collection.query(
                     query_embeddings=[query_vector],
                     n_results=top_k * 5,  # Fetch 15 instead of 3 to allow filtering + fallback
@@ -436,7 +436,7 @@ class RAGService:
                     metas = search_results["metadatas"][0] if "metadatas" in search_results else []
                     distances = search_results["distances"][0] if "distances" in search_results else []
 
-                    # ISSUE #B FIX: Apply strict threshold with fallback
+                    # # Apply strict threshold with fallback
                     strict_threshold = settings.RAG_DISTANCE_THRESHOLD  # 0.60 (60% similarity)
                     fallback_threshold = settings.RAG_DISTANCE_THRESHOLD + 0.15  # 0.75 (25% similarity) if needed
                     used_fallback = False
@@ -450,7 +450,7 @@ class RAGService:
                                 "metadata": metas[i] if i < len(metas) else {},
                                 "distance": distance
                             })
-                        # ISSUE #B FIX: If strict results are empty, use fallback threshold
+                        # # If strict results are empty, use fallback threshold
                         elif len(results) == 0 and distance <= fallback_threshold:
                             results.append({
                                 "text": docs[i],

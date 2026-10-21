@@ -118,7 +118,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 if os.path.exists(temp_file_path):
                     os.remove(temp_file_path)
 
-                # Stream the transcribed response as JSON frames (Step 4 Issue #1 & #2)
+                # Stream the transcribed response as JSON frames (# & #2)
                 if vision_response:
                     message_id = f"msg_{uuid.uuid4().hex[:8]}"
                     from app.services.websocket_framing_service import websocket_framer
@@ -140,7 +140,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 logger.info(f"Received manual override text query: '{text_data}'")
                 text_query_used = text_data
 
-                # Generate unique ID per query (Step 4 Issue #2)
+                # Generate unique ID per query (# )
                 message_id = f"msg_{uuid.uuid4().hex[:8]}"
 
                 # Process text through sliding window context manager scoped to local memory

@@ -148,7 +148,7 @@ class DatabaseService:
                         )
                     """)
                     
-                    # --- ISSUE #D FIX: Create sync_log table to track document synchronization ---
+                    # Create sync_log table to track document synchronization ---
                     cursor.execute("""
                         CREATE TABLE IF NOT EXISTS sync_log (
                             sync_id SERIAL PRIMARY KEY,
@@ -226,7 +226,7 @@ class DatabaseService:
                         )
                     """)
                     
-                    # --- ISSUE #D FIX: Create sync_log table to track document synchronization ---
+                    # Create sync_log table to track document synchronization ---
                     cursor.execute("""
                         CREATE TABLE IF NOT EXISTS sync_log (
                             sync_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -916,7 +916,7 @@ class DatabaseService:
             logger.error(f"Failed to validate auth token: {e}")
         return None
 
-    # --- ISSUE #D FIX: Sync Tracking & Deduplication Methods ---
+    # Sync Tracking & Deduplication Methods ---
     def record_sync_start(self, document_id: str, source_system: str, sync_type: str) -> bool:
         """Records the start of a document sync operation."""
         p = self.placeholder

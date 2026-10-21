@@ -43,7 +43,7 @@ TEMP_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "
 os.makedirs(TEMP_DIR, exist_ok=True)
 
 # ============================================================================
-# Issue #6 Fix: Context Manager for Safe Temporary File Handling
+# # Context Manager for Safe Temporary File Handling
 # ============================================================================
 
 @contextlib.contextmanager
@@ -217,7 +217,7 @@ def sync_confluence_page(page_id: str):
 
         html_body = data.get("body", {}).get("storage", {}).get("value", "")
         
-        # Issue #1, #10, #10.1 Fix: Extract live Space Key, Document Version, and Author
+        # Extract live Space Key, Document Version, and Author
         live_version = data.get("version", {}).get("number", 1)
         author = data.get("version", {}).get("by", {}).get("displayName", "System User")
         space_key = data.get("space", {}).get("key", "UNKNOWN_SPACE")
@@ -230,7 +230,7 @@ def sync_confluence_page(page_id: str):
         logger.info("Generating dynamic 2-sentence summary...")
         doc_summary = _generate_document_summary(full_content)
 
-        # --- ISSUE #D FIX: Check if document was recently synced to prevent duplicates ---
+        # Check if document was recently synced to prevent duplicates ---
         document_id = f"confluence_page_{page_id}"
         from app.services.db_service import db_service
         if db_service.is_recently_synced(document_id, "CONFLUENCE", min_age_minutes=30):
@@ -240,7 +240,7 @@ def sync_confluence_page(page_id: str):
         # Record sync start for tracking
         db_service.record_sync_start(document_id, "CONFLUENCE", "full_page_sync")
         
-        # Issue #6 Fix: Use context manager for guaranteed cleanup
+        # # Use context manager for guaranteed cleanup
         with temp_confluence_document(filename) as temp_file_path:
             with open(temp_file_path, "w", encoding="utf-8") as tf:
                 tf.write(full_content)
@@ -280,7 +280,7 @@ def sync_confluence_page(page_id: str):
                     last_synced_at=sync_timestamp,
                     confluence_version=live_version
                 )
-                # --- ISSUE #D FIX: Record sync completion ---
+                # Record sync completion ---
                 db_service.record_sync_complete(
                     document_id=document_id,
                     source_system="CONFLUENCE",
@@ -290,7 +290,7 @@ def sync_confluence_page(page_id: str):
                 logger.info(f"Synchronized updated Confluence page: [{title}]")
                 return True
             else:
-                # --- ISSUE #D FIX: Record sync failure ---
+                # Record sync failure ---
                 db_service.record_sync_complete(
                     document_id=document_id,
                     source_system="CONFLUENCE",
@@ -378,7 +378,7 @@ def sync_recent_confluence_pages(minutes: int = 30):
             logger.info("Generating dynamic 2-sentence summary...")
             doc_summary = _generate_document_summary(full_content)
 
-            # --- ISSUE #D FIX: Check if document was recently synced to prevent duplicates ---
+            # Check if document was recently synced to prevent duplicates ---
             document_id = f"confluence_page_{page_id}"
             from app.services.db_service import db_service
             if db_service.is_recently_synced(document_id, "CONFLUENCE", min_age_minutes=30):
@@ -391,7 +391,7 @@ def sync_recent_confluence_pages(minutes: int = 30):
             # Write to temporary file
             filename = f"confluence_page_{space_key}_{page_id}.txt"
             
-            # Issue #6 Fix: Use context manager for guaranteed cleanup
+            # # Use context manager for guaranteed cleanup
             with temp_confluence_document(filename) as temp_file_path:
                 with open(temp_file_path, "w", encoding="utf-8") as tf:
                     tf.write(full_content)
@@ -429,7 +429,7 @@ def sync_recent_confluence_pages(minutes: int = 30):
                         last_synced_at=sync_timestamp,
                         confluence_version=live_version
                     )
-                    # --- ISSUE #D FIX: Record sync completion ---
+                    # Record sync completion ---
                     db_service.record_sync_complete(
                         document_id=document_id,
                         source_system="CONFLUENCE",
@@ -439,7 +439,7 @@ def sync_recent_confluence_pages(minutes: int = 30):
                     logger.info(f"Synchronized updated Confluence page: [{title}]")
                     sync_count += 1
                 else:
-                    # --- ISSUE #D FIX: Record sync failure ---
+                    # Record sync failure ---
                     db_service.record_sync_complete(
                         document_id=document_id,
                         source_system="CONFLUENCE",
@@ -529,7 +529,7 @@ def sync_ado_workitem(item_id: str):
         # Write the semantic index string to temporary document in cache for vectorization
         filename = f"ado_workitem_{item_id}.txt"
         
-        # Issue #6 Fix: Use context manager for guaranteed cleanup
+        # # Use context manager for guaranteed cleanup
         with temp_confluence_document(filename) as temp_file_path:
             with open(temp_file_path, "w", encoding="utf-8") as tf:
                 tf.write(semantic_index_string)
