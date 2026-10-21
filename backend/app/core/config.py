@@ -153,10 +153,9 @@ class Settings(BaseSettings):
     PG_USER: str = "postgres"
     PG_PASSWORD: str = ""
 
-    # JWT Authentication Configuration (Phase 3.3 Security)
-    JWT_SECRET: str = "your-secret-key-change-in-production"  # MUST override in .env for production
-    JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRY_HOURS: int = 24
+    # Session Configuration (Phase 3.3 Security)
+    SESSION_TIMEOUT_HOURS: int = 24
+    SESSION_TOKEN_LENGTH: int = 32  # 64-char base64 string
 
 # Create a single, importable instance of the settings.
 settings = Settings()

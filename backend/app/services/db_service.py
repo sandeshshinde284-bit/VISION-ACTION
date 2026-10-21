@@ -1046,5 +1046,177 @@ class DatabaseService:
             logger.error(f"Failed to retrieve sync status: {e}")
         return results
 
+    def init_auth_tables(self):
+        """Create users and sessions tables for authentication"""
+        from app.core.config import settings
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                if settings.DATABASE_TARGET == "CLOUD":
+                    # PostgreSQL schemas
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS users (
+                            username VARCHAR(100) PRIMARY KEY,
+                            password VARCHAR(255) NOT NULL,
+                            role VARCHAR(50) DEFAULT 'USER',
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    """)
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS sessions (
+                            token VARCHAR(255) PRIMARY KEY,
+                            username VARCHAR(100) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            expires_at TIMESTAMP NOT NULL,
+                            last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    """)
+                else:
+                    # SQLite schemas
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS users (
+                            username TEXT PRIMARY KEY,
+                            password TEXT NOT NULL,
+                            role TEXT DEFAULT 'USER',
+                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                        )
+                    """)
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS sessions (
+                            token TEXT PRIMARY KEY,
+                            username TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                            expires_at DATETIME NOT NULL,
+                            last_activity DATETIME DEFAULT CURRENT_TIMESTAMP
+                        )
+                    """)
+                conn.commit()
+                logger.info("Authentication tables initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize auth tables: {e}")
+
+    def get_user(self, username: str) -> dict | None:
+        """Get user by username"""
+        from app.core.config import settings
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    f"SELECT username, password, role, created_at FROM users WHERE username = {self.placeholder}",
+                    (username,)
+                )
+                row = cursor.fetchone()
+                if row:
+                    return {
+                        "username": row[0],
+                        "password": row[1],
+                        "role": row[2],
+                        "created_at": str(row[3])
+                    }
+        except Exception as e:
+            logger.error(f"Failed to get user {username}: {e}")
+        return None
+
+    def create_user(self, username: str, password_hash: str, role: str = "USER") -> bool:
+        """Create a new user"""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    f"INSERT INTO users (username, password, role) VALUES ({self.placeholder}, {self.placeholder}, {self.placeholder})",
+                    (username, password_hash, role)
+                )
+                conn.commit()
+                logger.info(f"User created: {username}")
+                return True
+        except Exception as e:
+            logger.error(f"Failed to create user {username}: {e}")
+            return False
+
+    def create_session(self, token: str, username: str, expires_at) -> bool:
+        """Create a new session token"""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                # expires_at should be a datetime object
+                cursor.execute(
+                    f"INSERT INTO sessions (token, username, expires_at) VALUES ({self.placeholder}, {self.placeholder}, {self.placeholder})",
+                    (token, username, expires_at)
+                )
+                conn.commit()
+                logger.info(f"Session created for user: {username}")
+                return True
+        except Exception as e:
+            logger.error(f"Failed to create session for {username}: {e}")
+            return False
+
+    def get_session(self, token: str) -> dict | None:
+        """Get session by token"""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    f"SELECT token, username, created_at, expires_at, last_activity FROM sessions WHERE token = {self.placeholder}",
+                    (token,)
+                )
+                row = cursor.fetchone()
+                if row:
+                    return {
+                        "token": row[0],
+                        "username": row[1],
+                        "created_at": row[2],
+                        "expires_at": row[3],
+                        "last_activity": row[4]
+                    }
+        except Exception as e:
+            logger.error(f"Failed to get session: {e}")
+        return None
+
+    def delete_session(self, token: str) -> bool:
+        """Delete a session token"""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    f"DELETE FROM sessions WHERE token = {self.placeholder}",
+                    (token,)
+                )
+                conn.commit()
+                logger.info("Session deleted")
+                return True
+        except Exception as e:
+            logger.error(f"Failed to delete session: {e}")
+            return False
+
+    def update_session_activity(self, token: str) -> bool:
+        """Update session last activity timestamp"""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    f"UPDATE sessions SET last_activity = CURRENT_TIMESTAMP WHERE token = {self.placeholder}",
+                    (token,)
+                )
+                conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Failed to update session activity: {e}")
+            return False
+
+    def health_check(self) -> bool:
+        """Simple health check - verify database connection"""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
+                return True
+        except Exception as e:
+            logger.error(f"Database health check failed: {e}")
+            return False
+
 # Establish single, global instance for FastAPI import
 db_service = DatabaseService()
+
+# Initialize auth tables on startup
+db_service.init_auth_tables()

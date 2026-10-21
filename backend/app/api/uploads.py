@@ -9,10 +9,10 @@
 # to enforce corporate sandboxing guidelines.
 # ============================================================================
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, status, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, status, Header
 from app.services.rag_service import rag_service # Local ChromaDB/Embedding engine
 from app.core.config import settings
-from app.api.security_middleware import verify_user_token
+from app.api.auth import verify_session_token
 import hashlib
 import time
 import logging
@@ -61,7 +61,7 @@ def _check_rate_limit(client_id: str) -> bool:
 
 def _is_safe_filename(filename: str) -> bool:
     """
-    🛡️ SECURITY: Validate filenames to prevent directory traversal and injection attacks.
+    Security: Validate filenames to prevent directory traversal and injection attacks.
 
     Rules:
     - Must contain alphanumeric, dots, hyphens, underscores only
@@ -84,25 +84,37 @@ def _is_safe_filename(filename: str) -> bool:
 @router.post("/api/upload", tags=["Knowledge Ingestion"])
 async def upload_documents(
     files: list[UploadFile] = File(...),
-    current_user: dict = Depends(verify_user_token)
+    authorization: str = Header(None)
 ):
     """
     Receives an array of multipart corporate documents, saves them to a secure temp
     directory, embeds them into ChromaDB, and purges the raw files right after indexing.
 
-    🔐 Requires authentication via Bearer token
-    ⏱️ Rate limited to 5 uploads per minute
+    Security: Requires session token in Authorization header
+    Rate limited to 5 uploads per minute
 
     Supported formats: PDF, DOCX, TXT
     Max file size: 15MB per file
 
-    Example (with auth):
+    Example (with session token):
         POST /api/upload
-        Authorization: Bearer <jwt_token>
+        Authorization: Bearer <session_token>
         Content-Type: multipart/form-data
     """
+    
+    # Verify session token
+    if not authorization:
+        raise HTTPException(status_code=401, detail="No token provided")
+    
+    parts = authorization.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        raise HTTPException(status_code=401, detail="Invalid token format")
+    
+    token = parts[1]
+    username = verify_session_token(token)
+    
     # Rate Limiting - Use authenticated user ID
-    client_id = current_user.get("admin_name", "unknown_user")
+    client_id = username
     if not _check_rate_limit(client_id):
         logger.warning(f"Upload Rate Limit Exceeded for user {client_id}!")
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many files uploaded recently. Please wait a minute.")
@@ -113,7 +125,7 @@ async def upload_documents(
     for file in files:
         filename = file.filename
 
-        # 🛡️ SECURITY: Validate filename - prevent directory traversal & malicious names
+        # Security: Validate filename - prevent directory traversal & malicious names
         if not _is_safe_filename(filename):
             logger.warning(f"SECURITY: Blocked unsafe filename: {filename}")
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid filename: {filename}")
@@ -138,7 +150,7 @@ async def upload_documents(
                         
                     total_bytes_written += len(chunk)
                     
-                    # 🛡️ HARDENED SERVER-SIDE GUARDRAIL (OOM Protection)
+                    # Hardened server-side guardrail (OOM Protection)
                     # Abort the stream instantly if it crosses the limit, rather than trusting spoofable headers!
                     if total_bytes_written > MAX_FILE_SIZE:
                         logger.warning(f"SECURITY BLOCK: File [{filename}] stream aborted. Exceeded true 15MB limit!")
@@ -153,7 +165,7 @@ async def upload_documents(
             doc_id = f"doc_{file_hash[:24]}" # Create a 24-char unique ID based on the file's binary content
             logger.info(f"Streamed [{filename}] ({total_bytes_written} bytes) safely. SHA-256 ID: {doc_id}")
 
-            #: Deduplication (Check database before wasting Vertex AI tokens)
+            # Deduplication (Check database before wasting Vertex AI tokens)
             from app.services.db_service import db_service
             if db_service.get_document(doc_id):
                 logger.info(f"Deduplication hit: [{filename}] (Hash: {doc_id}) is already in the vector database! Skipping embeddings.")
@@ -213,7 +225,7 @@ async def upload_documents(
             })
 
         finally:
-            # 3. CRITICAL: Instantly delete the raw document from local server storage
+            # Critical: Instantly delete the raw document from local server storage
             # This ensures only vectors and index chunks remain inside the local secure sandbox.
             if os.path.exists(temp_file_path):
                 try:
