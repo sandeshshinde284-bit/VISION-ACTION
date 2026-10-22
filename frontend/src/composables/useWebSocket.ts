@@ -4,7 +4,8 @@ import { container } from '@/core/di.container';
 // Declare SHARED, GLOBAL states outside the function block!
 // In Vue 3, this turns the composable into a global state manager (Singleton)
 const connectionStatus = ref('Disconnected');
-const aiState = ref<'STANDBY' | 'THINKING' | 'SPEAKING'>('STANDBY');
+const aiState = ref<'STANDBY' | 'THINKING' | 'STREAMING' | 'SPEAKING'>('STANDBY');
+const isCancelled = ref(false); // Set true when user clicks Cancel; discards the in-flight response
 const agentStatus = ref<string>('V.I.S.I.O.N. is thinking...');
 const receivedMessages = ref<string[]>([]);
 const lastSessionId = ref('default_session');
@@ -104,6 +105,16 @@ export function useWebSocket() {
           }
 
           if (frame.type === 'text_chunk') {
+            // ISSUE #8 fix: once the first token arrives, move out of THINKING into
+            // STREAMING so the UI can show "responding..." instead of leaving the
+            // "thinking" indicator showing while text is already visible.
+            if (isCancelled.value) {
+              return; // User cancelled this request - drop incoming chunks silently
+            }
+            if (aiState.value === 'THINKING') {
+              aiState.value = 'STREAMING';
+            }
+
             const chunkContent = frame.content || '';
             currentStreamingMessage += chunkContent;
 
@@ -149,6 +160,7 @@ export function useWebSocket() {
             currentStreamingMessage = '';
             agentStatus.value = 'V.I.S.I.O.N. is thinking...'; // Reset for next query
             aiState.value = 'STANDBY';
+            isCancelled.value = false; // Clear cancel flag now that this request is done
             return;
           }
 
@@ -156,10 +168,14 @@ export function useWebSocket() {
           // Fallback if data is not JSON (legacy support)
           // warn: "WebSocket received non-JSON frame, falling back to legacy parsing:", data);
           
-          const isEndMarker = data.includes('[SOURCE:') || 
-                             data.includes('[TOKENS:') || 
+          if (isCancelled.value) {
+            return; // User cancelled this request - drop legacy frames silently too
+          }
+
+          const isEndMarker = data.includes('[SOURCE:') ||
+                             data.includes('[TOKENS:') ||
                              data.includes('[ADO_COUNT:');
-          
+
           if (isEndMarker) {
             currentStreamingMessage += data;
             if (currentStreamingMessage.length > 0) {
@@ -173,7 +189,11 @@ export function useWebSocket() {
             }
             agentStatus.value = 'V.I.S.I.O.N. is thinking...';
             aiState.value = 'STANDBY';
+            isCancelled.value = false;
           } else {
+            if (aiState.value === 'THINKING') {
+              aiState.value = 'STREAMING';
+            }
             currentStreamingMessage += data;
             if (streamingMessageIndex < 0) {
               receivedMessages.value.push(currentStreamingMessage);
@@ -209,6 +229,7 @@ export function useWebSocket() {
       (state) => {
         if (state === 'THINKING') {
           thinkingStartTime = Date.now();
+          isCancelled.value = false; // Fresh request - clear any stale cancel flag
           aiState.value = state;
         } else {
           const timeSpentThinking = Date.now() - thinkingStartTime;
@@ -232,6 +253,20 @@ export function useWebSocket() {
 
   const interruptAudio = () => {
     webSocketService.interruptAudio();
+  };
+
+  // ISSUE #9 fix: lets the user bail out of a stuck/slow request.
+  // This is a "soft" cancel - the backend request already in flight (running in a
+  // thread executor) keeps running to completion, but the frontend immediately
+  // stops showing "thinking"/"streaming" and discards whatever response eventually
+  // arrives for it, so the user isn't stuck staring at a frozen indicator.
+  const cancelRequest = () => {
+    isCancelled.value = true;
+    currentStreamingMessage = '';
+    streamingMessageIndex = -1;
+    agentStatus.value = 'V.I.S.I.O.N. is thinking...';
+    aiState.value = 'STANDBY';
+    receivedMessages.value.push('[SYSTEM: Request cancelled by user]');
   };
 
   const disconnect = () => {
@@ -275,6 +310,7 @@ export function useWebSocket() {
     receivedMessages,
     sendMessage,
     interruptAudio,
+    cancelRequest,
     connect,
     disconnect,
     sendAudioData,

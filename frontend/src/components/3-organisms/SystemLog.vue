@@ -153,11 +153,24 @@
           <span class="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-bounce" style="animation-delay: 300ms; animation-duration: 0.8s;"></span>
         </div>
         
-        <!-- Warning if taking too long -->
-        <div v-if="elapsedSeconds > 5" class="text-[9px] text-amber-600 ml-4 md:ml-6 flex items-center space-x-1">
+        <!-- Warning if taking too long + Cancel button (ISSUE #9 fix) -->
+        <div v-if="elapsedSeconds > 5" class="text-[9px] text-amber-600 ml-4 md:ml-6 flex items-center space-x-2">
           <span>⏱️</span>
           <span>This is taking longer than usual. Please check the network connection.</span>
+          <button
+            @click="emit('cancel-request')"
+            class="px-2 py-0.5 rounded bg-red-500/10 border border-red-500/40 text-red-500 hover:bg-red-500/20 font-bold uppercase tracking-wider text-[9px] cursor-pointer transition-all"
+          >
+            ❌ Cancel
+          </button>
         </div>
+      </li>
+
+      <!-- 5. STREAMING INDICATOR (ISSUE #8/#12 fix) - shown once the response starts arriving,
+           so the user isn't left looking at a "thinking" indicator after text is already visible -->
+      <li v-if="aiState === 'STREAMING'" class="flex items-center space-x-2 text-[var(--accent)]/70 font-bold text-[10px] uppercase tracking-[0.2em] select-none ml-4 md:ml-6 animate-fade-in">
+        <span>📨</span>
+        <span>V.I.S.I.O.N. is responding...</span>
       </li>
     </ul>
     <div v-else class="text-center text-slate-600 h-full flex items-center justify-center italic text-xs tracking-[0.3em] uppercase select-none">
@@ -175,11 +188,11 @@ const props = defineProps<{
   messages: string[];
   adminName?: string;
   isDarkMode?: boolean; // Prop passed from parent view
-  aiState?: 'STANDBY' | 'THINKING' | 'SPEAKING'; // Dynamic connection state
+  aiState?: 'STANDBY' | 'THINKING' | 'STREAMING' | 'SPEAKING'; // Dynamic connection state
   agentStatus?: string; // Real-time agent status logs (V.I.S.I.O.N. Redesign)
 }>();
 
-const emit = defineEmits(['trigger-ado-query']);
+const emit = defineEmits(['trigger-ado-query', 'cancel-request']);
 
 // Thinking Status Tracking
 const statusHistory = ref<Array<{msg: string, time: number, completed: boolean}>>([])

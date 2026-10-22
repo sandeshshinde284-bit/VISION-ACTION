@@ -379,7 +379,7 @@
                 class="flex-1 w-full overflow-y-auto custom-scrollbar flex flex-col items-center px-4 md:px-6"
               >
                 <div class="w-full max-w-5xl pb-6 pt-6">
-                  <SystemLog :messages="receivedMessages" :admin-name="adminName" :is-dark-mode="isDarkMode" :ai-state="aiState" :agent-status="agentStatus" @trigger-ado-query="handleAdoQuery" />
+                  <SystemLog :messages="receivedMessages" :admin-name="adminName" :is-dark-mode="isDarkMode" :ai-state="aiState" :agent-status="agentStatus" @trigger-ado-query="handleAdoQuery" @cancel-request="cancelRequest" />
                 </div>
               </div>
 
@@ -796,8 +796,8 @@
 
                      <!-- ➤ DYNAMIC SEND / STOP ACTION BUTTON (Always visible!) -->
                      <button
-                       v-if="aiState === 'THINKING' || aiState === 'SPEAKING'"
-                       @click="interruptAudio"
+                       v-if="aiState === 'THINKING' || aiState === 'STREAMING' || aiState === 'SPEAKING'"
+                       @click="aiState === 'SPEAKING' ? interruptAudio() : cancelRequest()"
                        class="w-8 h-8 flex items-center justify-center rounded-full bg-red-500 hover:bg-red-600 text-white hover:scale-105 active:scale-95 transition-all shadow-md cursor-pointer shrink-0 border-0 shadow-[0_0_12px_rgba(239,68,68,0.35)] animate-pulse"
                        title="Interrupt Generation / Stop Playback"
                      >
@@ -1187,6 +1187,7 @@ const {
   sendAudioData,
   sendMessage,
   interruptAudio,
+  cancelRequest,
   connect,
   disconnect
 } = useWebSocket();
@@ -1200,7 +1201,7 @@ const activeSessionId = ref('default_session');
 const savedSessions = ref<{ session_id: string; title: string; admin_name: string }[]>([]);
 const editingSessionId = ref<string | null>(null);
 const sessionRenameTitle = ref('');
-const isGenerating = computed(() => aiState.value === 'THINKING' || aiState.value === 'SPEAKING');
+const isGenerating = computed(() => aiState.value === 'THINKING' || aiState.value === 'STREAMING' || aiState.value === 'SPEAKING');
 
 const textInput = ref('');
 const sessionTitle = ref('General Session'); // Editable session title

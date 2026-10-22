@@ -8,16 +8,34 @@
 
 ## SUMMARY
 
-Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS**
+Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS** (+ 1 newly discovered crash, now fixed)
 
 | Priority | Category | Count | Status |
 |----------|----------|-------|--------|
-| 🔴 MUST FIX | Chat System | 5 issues | BLOCKS EVERYTHING |
-| 🔴 MUST FIX | Error Handling | 6 issues | User blind to failures |
-| 🟠 SHOULD FIX | Real-time Feedback | 1 issue | User doesn't see progress |
+| 🔴 MUST FIX | Chat System | 5 issues | 3 FIXED (2026-10-22), 2 still open |
+| 🔴 MUST FIX | Error Handling | 6 issues | FIXED (2026-10-22) |
+| 🟠 SHOULD FIX | Real-time Feedback | 1 issue | Still open (web search scope UI) |
 | 🟡 NICE TO HAVE | Missing Features | 2 issues | Incomplete product |
 | 🟡 NICE TO HAVE | Design System | — | Glasmorphic → Flat/Hybrid |
-| **TOTAL** | — | **16** | **DO NOT SHIP** |
+| **TOTAL** | — | **16** | **DO NOT SHIP — 2 open chat UX gaps remain** |
+
+---
+
+## ✅ FIXED ON 2026-10-22
+
+- **Issue #14 root-cause dependency / Confluence sync crash (NEW FIND):** `sync_confluence_page()` referenced an undefined `filename` variable — every single-page Confluence sync (`/api/sync/confluence/page/{id}`) was silently crashing with `NameError`, caught by the blanket `except Exception`, and returning `False` with zero detail. Fixed: `filename` is now derived from `space_key`/`page_id` before use.
+- **Issue #1 (Confluence sync fails silently):** `sync_confluence_page()` now classifies every failure (`classify_sync_error()`) into `error_type` + `retryable` + human message, and persists it via `db_service.record_sync_complete(..., error=...)` instead of a bare `False`.
+- **Issue #2 (ADO sync fails silently):** Same structured-error treatment applied to `sync_ado_workitem()`.
+- **Issue #3 (no retry logic):** Added `retry_with_backoff()` — retryable errors (timeouts, 5xx, 429, connection errors) now retry up to 3x with exponential backoff (3s → 6s → 12s) before giving up; non-retryable errors (401/403/404) fail fast.
+- **Issue #4 (RAG ingestion failures had no error detail):** Ingestion failures and crashes now write a classified `error_type` string into `sync_log.error_message` (visible via `GET /api/sync/status`) instead of a generic log line.
+- **Issue #7 (thinking state never ends) / #10 (status history not reset) / #11 (timer memory leak):** Already fixed prior to this pass — verified still correct in `SystemLog.vue`.
+- **Issue #8 (no feedback during streaming) / #12 (missing STREAMING state):** Added `'STREAMING'` to the `aiState` state machine (`useWebSocket.ts`, `SystemLog.vue`, `HomeView.vue`). The UI now flips from "🧠 thinking" to "📨 V.I.S.I.O.N. is responding..." the moment the first token/chunk arrives, instead of leaving the thinking indicator up while the response is already visible.
+- **Issue #9 (timeout has no cancel button):** Added a "❌ Cancel" button next to the "taking longer than usual" warning, wired to a new `cancelRequest()` in `useWebSocket.ts`. This is a **soft cancel**: the backend request already in flight keeps running (it's in a thread executor with no cooperative cancellation hook), but the frontend immediately returns to STANDBY and silently discards whatever response eventually arrives. A true hard-cancel (aborting the backend thread) is tracked as follow-up work below.
+
+## ⚠️ STILL OPEN (chat system)
+
+- **Issue #5 (no sync status WebSocket push):** Sync failures are now recorded with full detail in the DB and queryable via `GET /api/sync/status`, but there's still no proactive WebSocket push to the frontend when a sync finishes — the UI would need to poll. Estimated 2-3 hours to add the push.
+- **Hard-cancel for in-flight AI requests:** The cancel button added above is a soft/UI-only cancel. Making it a true cancel requires either (a) passing a `threading.Event` into `ai_service.process_text` and checking it between steps, or (b) switching that path to an `asyncio.Task` that can be `.cancel()`'d. Estimated 3-4 hours.
 
 ---
 

@@ -155,6 +155,58 @@ def get_ado_comments(item_id: str) -> str:
     return ""
 
 
+def classify_sync_error(exc: Exception = None, status_code: int = None) -> dict:
+    """
+    Classifies a sync failure into a structured error descriptor.
+    Returns: {"error_type": str, "message": str, "retryable": bool}
+    This replaces bare `return False` with information the caller/DB/UI can act on.
+    (Fixes ISSUE #1/#2 from docs/ISSUES-TRACKER.md - silent sync failures)
+    """
+    if exc is not None:
+        if isinstance(exc, requests.exceptions.Timeout):
+            return {"error_type": "network_timeout", "message": "Server did not respond in time", "retryable": True}
+        if isinstance(exc, requests.exceptions.SSLError):
+            return {"error_type": "ssl_verification_failed", "message": f"SSL certificate error: {exc}", "retryable": False}
+        if isinstance(exc, requests.exceptions.ConnectionError):
+            return {"error_type": "network_unreachable", "message": f"Cannot reach server: {exc}", "retryable": True}
+        return {"error_type": "internal_error", "message": f"Unexpected error: {exc}", "retryable": True}
+
+    if status_code is not None:
+        if status_code == 401:
+            return {"error_type": "invalid_credentials", "message": "PAT/token is invalid or expired", "retryable": False}
+        if status_code == 403:
+            return {"error_type": "permission_denied", "message": "No permission to access this resource", "retryable": False}
+        if status_code == 404:
+            return {"error_type": "not_found", "message": "Resource not found", "retryable": False}
+        if status_code == 429:
+            return {"error_type": "rate_limit_exceeded", "message": "Rate limit hit", "retryable": True}
+        if status_code >= 500:
+            return {"error_type": "service_unavailable", "message": f"Server error (HTTP {status_code})", "retryable": True}
+        return {"error_type": "unexpected_http_code", "message": f"Unexpected HTTP {status_code}", "retryable": False}
+
+    return {"error_type": "unknown", "message": "Unknown error", "retryable": False}
+
+
+def retry_with_backoff(operation, max_retries: int = 3, base_delay: float = 2.0):
+    """
+    Calls `operation()` (a zero-arg callable returning a dict with 'retryable').
+    Retries with exponential backoff (2s, 4s, 8s...) only when the error is retryable.
+    Returns the final result dict. (Fixes ISSUE #3 - no retry logic for transient errors)
+    """
+    last_result = None
+    for attempt in range(1, max_retries + 1):
+        result = operation()
+        if result.get("status") == "success" or not result.get("retryable"):
+            return result
+        last_result = result
+        if attempt < max_retries:
+            delay = base_delay * (2 ** (attempt - 1))
+            logger.warning(f"Retryable error '{result.get('error_type')}' on attempt {attempt}/{max_retries}. Retrying in {delay:.0f}s...")
+            time.sleep(delay)
+    logger.error(f"Exhausted {max_retries} retries. Last error: {last_result}")
+    return last_result
+
+
 def _generate_document_summary(content: str) -> str:
     """Invokes a fast, stateless Gemini Flash call to generate a concise, 2-sentence summary of the document for rapid retrieval."""
     try:
@@ -199,15 +251,48 @@ def sync_confluence_page(page_id: str):
     else:
         headers["Authorization"] = f"Bearer {pat}"
 
-    try:
-        res = requests.get(api_endpoint, headers=headers, auth=auth, timeout=15)
-        if res.status_code != 200:
-            logger.error(f"Confluence API failure: HTTP {res.status_code} - {res.text}")
-            return False
+    # Record sync start BEFORE the network call so a failure here still has an
+    # IN_PROGRESS row for record_sync_complete() to update with the error below.
+    from app.services.db_service import db_service as _db_service_early
+    _db_service_early.record_sync_start(f"confluence_page_{page_id}", "CONFLUENCE", "full_page_sync")
 
+    def _attempt() -> dict:
+        try:
+            res = requests.get(api_endpoint, headers=headers, auth=auth, timeout=15)
+        except Exception as net_exc:
+            err = classify_sync_error(exc=net_exc)
+            logger.error(f"Confluence network error for page [{page_id}]: {err['message']}")
+            return {"status": "error", **err}
+
+        if res.status_code != 200:
+            err = classify_sync_error(status_code=res.status_code)
+            logger.error(f"Confluence API failure: HTTP {res.status_code} - {res.text[:300]} ({err['error_type']})")
+            return {"status": "error", **err}
+
+        return {"status": "success", "response": res}
+
+    attempt_result = retry_with_backoff(_attempt, max_retries=3, base_delay=3.0)
+    if attempt_result.get("status") != "success":
+        # Record the FULLY CLASSIFIED error so the sync status endpoint / UI can show it
+        try:
+            from app.services.db_service import db_service
+            db_service.record_sync_complete(
+                document_id=f"confluence_page_{page_id}",
+                source_system="CONFLUENCE",
+                chunk_count=0,
+                vector_count=0,
+                error=f"[{attempt_result.get('error_type')}] {attempt_result.get('message')}"
+            )
+        except Exception:
+            pass
+        return False
+
+    res = attempt_result["response"]
+
+    try:
         data = res.json()
         title = data.get("title", f"Confluence Page {page_id}")
-        
+
         # 🛡️ SECURITY GUARDRAIL: Block Restricted Pages
         restrictions = data.get("restrictions", {}).get("read", {}).get("restrictions", {}).get("user", {}).get("results", [])
         if restrictions:
@@ -215,7 +300,7 @@ def sync_confluence_page(page_id: str):
             return False
 
         html_body = data.get("body", {}).get("storage", {}).get("value", "")
-        
+
         # Extract live Space Key, Document Version, and Author
         live_version = data.get("version", {}).get("number", 1)
         author = data.get("version", {}).get("by", {}).get("displayName", "System User")
@@ -236,9 +321,12 @@ def sync_confluence_page(page_id: str):
             logger.info(f"Skipping Confluence page [{page_id}] - already synced within last 30 minutes (dedup logic)")
             return True  # Not an error, just skipped
 
-        # Record sync start for tracking
-        db_service.record_sync_start(document_id, "CONFLUENCE", "full_page_sync")
-        
+        # (sync start already recorded above, before the network call)
+
+        # FIX (was crashing with NameError - 'filename' was never defined, causing every
+        # single-page Confluence sync to silently fail via the blanket except-block below)
+        filename = f"confluence_page_{space_key}_{page_id}.txt"
+
         # # Use context manager for guaranteed cleanup
         with temp_confluence_document(filename) as temp_file_path:
             with open(temp_file_path, "w", encoding="utf-8") as tf:
@@ -295,7 +383,7 @@ def sync_confluence_page(page_id: str):
                     source_system="CONFLUENCE",
                     chunk_count=0,
                     vector_count=0,
-                    error="Failed to ingest document into RAG service"
+                    error="[ingestion_failed] RAG ingestion returned False - check parsing/embedding/storage logs"
                 )
                 logger.error(f"Failed to synchronize Confluence Page [{title}].")
                 return False
@@ -303,6 +391,17 @@ def sync_confluence_page(page_id: str):
 
     except Exception as e:
         logger.exception(f"Critical crash during Confluence Page [{page_id}] synchronization")
+        try:
+            from app.services.db_service import db_service
+            db_service.record_sync_complete(
+                document_id=f"confluence_page_{page_id}",
+                source_system="CONFLUENCE",
+                chunk_count=0,
+                vector_count=0,
+                error=f"[internal_error] {str(e)}"
+            )
+        except Exception:
+            pass
         return False
 
 
@@ -472,13 +571,45 @@ def sync_ado_workitem(item_id: str):
     api_endpoint = f"{url}/_apis/wit/workitems/{item_id}?api-version=7.0"
     logger.info(f"Initiating live Azure DevOps sync for Work Item ID [{item_id}]...")
 
-    try:
-        # ADO expects HTTP Basic authentication with empty username and PAT as password
-        res = requests.get(api_endpoint, auth=("", pat), timeout=15)
-        if res.status_code != 200:
-            logger.error(f"ADO API failure: HTTP {res.status_code} - {res.text}")
-            return False
+    # Record sync start BEFORE the network call so a failure here still has an
+    # IN_PROGRESS row for record_sync_complete() to update with the error below.
+    from app.services.db_service import db_service as _db_service_early
+    _db_service_early.record_sync_start(f"ado_workitem_{item_id}", "ADO", "single_item_sync")
 
+    def _attempt() -> dict:
+        try:
+            # ADO expects HTTP Basic authentication with empty username and PAT as password
+            res = requests.get(api_endpoint, auth=("", pat), timeout=15)
+        except Exception as net_exc:
+            err = classify_sync_error(exc=net_exc)
+            logger.error(f"ADO network error for item [{item_id}]: {err['message']}")
+            return {"status": "error", **err}
+
+        if res.status_code != 200:
+            err = classify_sync_error(status_code=res.status_code)
+            logger.error(f"ADO API failure: HTTP {res.status_code} - {res.text[:300]} ({err['error_type']})")
+            return {"status": "error", **err}
+
+        return {"status": "success", "response": res}
+
+    attempt_result = retry_with_backoff(_attempt, max_retries=3, base_delay=3.0)
+    if attempt_result.get("status") != "success":
+        try:
+            from app.services.db_service import db_service
+            db_service.record_sync_complete(
+                document_id=f"ado_workitem_{item_id}",
+                source_system="ADO",
+                chunk_count=0,
+                vector_count=0,
+                error=f"[{attempt_result.get('error_type')}] {attempt_result.get('message')}"
+            )
+        except Exception:
+            pass
+        return False
+
+    res = attempt_result["response"]
+
+    try:
         data = res.json()
         fields = data.get("fields", {})
         
@@ -565,15 +696,39 @@ def sync_ado_workitem(item_id: str):
             success = rag_service.ingest_document(temp_file_path, filename, custom_metadata=custom_metadata)
             
             if success:
+                db_service.record_sync_complete(
+                    document_id=custom_metadata["document_id"],
+                    source_system="ADO",
+                    chunk_count=len(full_content.split("\n")),
+                    vector_count=1
+                )
                 logger.info(f"Successfully synchronized ADO Work Item [{title}]!")
                 return True
             else:
+                db_service.record_sync_complete(
+                    document_id=custom_metadata["document_id"],
+                    source_system="ADO",
+                    chunk_count=0,
+                    vector_count=0,
+                    error="[ingestion_failed] RAG ingestion returned False - check parsing/embedding/storage logs"
+                )
                 logger.error(f"Failed to synchronize ADO Work Item [{title}].")
                 return False
             # Cleanup is GUARANTEED by context manager even if exception occurs
 
     except Exception as e:
         logger.exception(f"Critical crash during ADO Work Item [{item_id}] synchronization")
+        try:
+            from app.services.db_service import db_service
+            db_service.record_sync_complete(
+                document_id=f"ado_workitem_{item_id}",
+                source_system="ADO",
+                chunk_count=0,
+                vector_count=0,
+                error=f"[internal_error] {str(e)}"
+            )
+        except Exception:
+            pass
         return False
 
 
