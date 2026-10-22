@@ -30,6 +30,41 @@ router = APIRouter()
 TEMP_AUDIO_DIR = "temp_audio"
 os.makedirs(TEMP_AUDIO_DIR, exist_ok=True) # Ensure cache directory exists
 
+# ============================================================================
+# ACTIVE CONNECTION REGISTRY (Issue #5 fix - 2026-10-22)
+# ============================================================================
+# Sync jobs (Confluence/ADO) run in BackgroundTasks worker threads, completely
+# decoupled from any specific WebSocket. To let the frontend learn a sync
+# finished (instead of silently writing to the DB and leaving the UI blind),
+# we keep a small registry of {admin_name: (websocket, event_loop)} and expose
+# a thread-safe broadcast_sync_notification() that sync_connectors.py calls
+# after record_sync_complete(). This is intentionally simple (last connection
+# per admin wins, in-memory only) rather than a full pub/sub system.
+ACTIVE_CONNECTIONS: dict = {}
+
+
+def broadcast_sync_notification(payload: dict):
+    """
+    Thread-safe push of a sync-completion event to every currently connected
+    admin. Safe to call from a background worker thread (uses
+    asyncio.run_coroutine_threadsafe against each connection's own event loop).
+    Never raises - a failed push is logged and otherwise ignored, since this
+    is a best-effort notification, not a reliability-critical path.
+    """
+    if not ACTIVE_CONNECTIONS:
+        return
+    import json as _json
+    message = _json.dumps({"type": "sync_notification", **payload})
+    for admin_name, (ws, loop) in list(ACTIVE_CONNECTIONS.items()):
+        try:
+            if loop.is_closed():
+                continue
+            if getattr(ws, "client_state", None) == WebSocketState.DISCONNECTED:
+                continue
+            asyncio.run_coroutine_threadsafe(ws.send_text(message), loop)
+        except Exception as e:
+            logger.warning(f"Failed to push sync notification to admin [{admin_name}]: {e}")
+
 async def _run_background_title_update(session_id: str, first_msg: str, admin_name: str, websocket: WebSocket):
     """Generates and updates a session title asynchronously in the background, streaming the result to client."""
     try:
@@ -73,6 +108,10 @@ async def websocket_endpoint(websocket: WebSocket):
         return
         
     logger.info(f"Session binding request received: session_id=[{session_id}] for user=[{admin_name}]")
+
+    # Register this connection so background sync jobs can push completion
+    # notifications to it (Issue #5 fix - see broadcast_sync_notification above)
+    ACTIVE_CONNECTIONS[admin_name] = (websocket, asyncio.get_event_loop())
 
     # --- PER-CONNECTION CONCURRENCY-SAFE MEMORY QUEUE (PHASE 4) ---
     # Instantiated locally in this connection context to prevent multi-admin memory leaks!
@@ -183,4 +222,8 @@ async def websocket_endpoint(websocket: WebSocket):
     finally:
         # Clear local array to garbage collect memory
         connection_history.clear()
+        # Unregister from the sync-notification registry (only if we're still the
+        # registered connection for this admin - avoids a race if they reconnected)
+        if ACTIVE_CONNECTIONS.get(admin_name, (None, None))[0] is websocket:
+            ACTIVE_CONNECTIONS.pop(admin_name, None)
         logger.info(f"WebSocket closed gracefully. Local context memory cleared for session [{session_id}].")

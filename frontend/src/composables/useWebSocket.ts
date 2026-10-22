@@ -12,6 +12,7 @@ const lastSessionId = ref('default_session');
 const lastAdminName = ref('');
 const isIntentionalDisconnect = ref(false);
 const activeSessionTitle = ref('');
+const lastSyncNotifications = ref<any[]>([]); // Rolling buffer of recent sync_notification frames (Issue #16 dashboard reads this)
 
 let isInitialized = false;
 let thinkingStartTime = 0;
@@ -95,6 +96,23 @@ export function useWebSocket() {
             // New stream started! Reset accumulator indices
             currentStreamingMessage = '';
             streamingMessageIndex = -1;
+            return;
+          }
+
+          if (frame.type === 'sync_notification') {
+            // ISSUES-TRACKER Issue #5 fix (2026-10-22): backend now pushes this
+            // live when a Confluence/ADO sync job finishes, instead of the
+            // frontend having no way to find out short of polling /api/sync/status.
+            const isSuccess = frame.status === 'success';
+            const label = frame.source_system === 'CONFLUENCE' ? 'Confluence' : frame.source_system === 'ADO' ? 'Azure DevOps' : frame.source_system;
+            if (isSuccess) {
+              receivedMessages.value.push(`[SYSTEM: ✅ ${label} sync complete - ${frame.chunk_count || 0} chunk(s), ${frame.vector_count || 0} vector(s) indexed]`);
+            } else {
+              receivedMessages.value.push(`[SYSTEM: ❌ ${label} sync failed - ${frame.error || 'Unknown error'}]`);
+            }
+            // Keep the latest notifications around for a sync status panel to read
+            lastSyncNotifications.value.unshift(frame);
+            if (lastSyncNotifications.value.length > 20) lastSyncNotifications.value.pop();
             return;
           }
 
@@ -307,6 +325,7 @@ export function useWebSocket() {
     aiState,
     agentStatus, // Exported real-time status updates!
     activeSessionTitle, // Exported for auto-title UI updates!
+    lastSyncNotifications, // Exported for the sync status panel (Issue #16)
     receivedMessages,
     sendMessage,
     interruptAudio,

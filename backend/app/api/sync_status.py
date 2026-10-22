@@ -7,10 +7,11 @@
 # and current operational status.
 # ============================================================================
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Header
 from app.core.config import settings
 from app.services.db_service import db_service
 from app.services.security_service import security_service
+from app.api.auth import verify_session_token
 from datetime import datetime
 import logging
 
@@ -19,17 +20,24 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/sync-status", tags=["Sync Status & History"])
 
 # ============================================================================
-# ADMIN-ONLY AUTHORIZATION
+# SESSION AUTHORIZATION
 # ============================================================================
+# BUG FIX (2026-10-22): this used to call security_service.is_admin(), a method
+# that does not exist anywhere in security_service.py. hasattr() silently
+# returned False every time, so is_admin was always False and every endpoint
+# below unconditionally raised 403 - these endpoints were completely unusable
+# regardless of who called them. Switched to the same session-token check
+# sync_routes.py already uses for its own sync endpoints, so this is now
+# consistent with the rest of the app AND actually callable.
 
-def require_admin():
-    """Ensure only admins can access sync status endpoints"""
-    is_admin = security_service.is_admin() if hasattr(security_service, 'is_admin') else False
-    if not is_admin:
-        raise HTTPException(
-            status_code=403,
-            detail="Unauthorized: Only administrators can view sync status"
-        )
+def require_admin(authorization: str = Header(None)):
+    """Verifies the caller's session token (same mechanism as sync_routes.py)."""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="No token provided")
+    parts = authorization.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        raise HTTPException(status_code=401, detail="Invalid token format")
+    return verify_session_token(parts[1])
 
 
 # ============================================================================
@@ -82,7 +90,8 @@ async def get_sync_health():
 async def get_sync_history(
     document_id: str = Query(None),
     source_system: str = Query(None),
-    limit: int = Query(50, ge=1, le=200)
+    limit: int = Query(50, ge=1, le=200),
+    authorization: str = Header(None)
 ):
     """
     Get sync operation history for debugging and audit trails.
@@ -112,7 +121,7 @@ async def get_sync_history(
     Example:
         GET /api/sync-status/history?source_system=CONFLUENCE&limit=10
     """
-    require_admin()
+    require_admin(authorization)
     
     try:
         results = db_service.get_sync_status(
@@ -139,7 +148,7 @@ async def get_sync_history(
 
 
 @router.get("/last-sync/{source_system}")
-async def get_last_sync_info(source_system: str):
+async def get_last_sync_info(source_system: str, authorization: str = Header(None)):
     """
     Get the most recent sync operation for a given source system.
     Shows when Confluence or ADO was last synced.
@@ -162,7 +171,7 @@ async def get_last_sync_info(source_system: str):
     Example:
         GET /api/sync-status/last-sync/CONFLUENCE
     """
-    require_admin()
+    require_admin(authorization)
     
     try:
         if source_system not in ["CONFLUENCE", "ADO"]:
@@ -217,7 +226,7 @@ async def get_last_sync_info(source_system: str):
 
 
 @router.get("/summary")
-async def get_sync_summary():
+async def get_sync_summary(authorization: str = Header(None)):
     """
     Get a high-level summary of sync operations for the dashboard.
     Shows both Confluence and ADO sync status at a glance.
@@ -239,7 +248,7 @@ async def get_sync_summary():
             "system_health": "healthy"
         }
     """
-    require_admin()
+    require_admin(authorization)
     
     try:
         confluence_info = db_service.get_sync_status(source_system="CONFLUENCE")

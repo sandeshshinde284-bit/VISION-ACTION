@@ -50,6 +50,15 @@
           <div class="flex items-center space-x-3 md:space-x-6 select-none">
             <AppStatusBadge :status="connectionStatus" :class="['hidden lg:flex', isAdmin ? 'cursor-pointer hover:opacity-85 transition-all active:scale-95' : '']" @click="isAdmin ? openTelemetryModal() : null" />
 
+            <!-- SYNC STATUS DASHBOARD TOGGLE (ISSUES-TRACKER Issue #16 fix) -->
+            <button
+              @click="showSyncPanel = !showSyncPanel"
+              class="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded border border-[var(--accent)]/10 hover:bg-[var(--accent)]/5 transition-colors shadow-sm cursor-pointer bg-transparent text-[var(--text-secondary)] hover:text-[var(--accent)]"
+              title="Sync Status Dashboard (Confluence / ADO)"
+            >
+              <span class="text-base">🔄</span>
+            </button>
+
             <!-- THEME TOGGLE (Restored for Dual-Theme Flexibility - Phase 4) -->
             <button
               @click="isDarkMode = !isDarkMode"
@@ -1136,6 +1145,17 @@
         </div>
       </div>
 
+      <!-- 5.5 SYNC STATUS DASHBOARD (ISSUES-TRACKER Issue #16 fix) -->
+      <div
+        v-if="showSyncPanel"
+        class="fixed inset-0 bg-black/65 backdrop-blur-md flex items-center justify-center z-50 animate-fade-in"
+        @click.self="showSyncPanel = false"
+      >
+        <div class="max-w-lg w-full mx-4 h-[70vh] max-h-[600px] animate-scale-up">
+          <SyncStatusPanel :notifications="lastSyncNotifications" @close="showSyncPanel = false" />
+        </div>
+      </div>
+
       <!-- 6. FLOATING ULTRA-USER-FRIENDLY HIGHLIGHT ACTION MENU (Idea E - Highlight-to-Ask!) -->
       <div
         v-if="showHighlightMenu"
@@ -1170,6 +1190,7 @@ import { useRouter } from 'vue-router'; // Import Router for Console Locking
 import AudioRecorder from '@/components/2-molecules/AudioRecorder.vue';
 import AppStatusBadge from '@/components/1-atoms/AppStatusBadge.vue';
 import SystemLog from '@/components/3-organisms/SystemLog.vue';
+import SyncStatusPanel from '@/components/3-organisms/SyncStatusPanel.vue';
 import { useWebSocket } from '@/composables/useWebSocket';
 
 const router = useRouter(); // Initialize router instance
@@ -1182,6 +1203,7 @@ const {
   aiState,
   agentStatus, // Real-time JIT statuses
   activeSessionTitle, // Auto-Title pipeline
+  lastSyncNotifications, // Live sync completion feed (Issue #5/#16)
   receivedMessages,
   isConnected,
   sendAudioData,
@@ -1753,6 +1775,7 @@ const selectModel = (model: string) => {
 
 // --- AGENTIC INTENT ROUTER STATES (PHASE 4) ---
 const activeScope = ref('AUTO'); // Default Scope
+const showSyncPanel = ref(false); // Toggles the Sync Status Dashboard (Issue #16)
 const currentRouteReason = ref(''); // Stores the route reason parsed from the backend (e.g. INTERNAL, WEB)
 
 const triggerQuickAction = (scopeType: string, templateText: string) => {

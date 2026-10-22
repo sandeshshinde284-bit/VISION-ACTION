@@ -35,6 +35,7 @@ class RAGService:
         """Initializes the database connections and ensures schema collections exist."""
         self.chroma_client = None
         self.collection = None
+        self.last_ingest_error = None  # Structured {"error_type", "message"} set by ingest_document() on failure
         
         # Initialize only if LOCAL is target to prevent local Chroma loading issues in production VMs
         if settings.DATABASE_TARGET == "LOCAL":
@@ -212,11 +213,22 @@ class RAGService:
         return split_recursively(text, semantic_separators)
 
     def ingest_document(self, file_path: str, filename: str, custom_metadata: dict = None) -> bool:
-        """Coordinates full document ingestion: parses text, chunks it, generates vectors, and indexes in active target DB."""
+        """Coordinates full document ingestion: parses text, chunks it, generates vectors, and indexes in active target DB.
+
+        NOTE (2026-10-22 / ISSUES-TRACKER Issue #4): the return type stays `bool` so every
+        existing caller (sync_confluence_page, sync_ado_workitem, upload routes) keeps working
+        unchanged - but every failure path now also sets `self.last_ingest_error` to a
+        structured {"error_type": "parsing"|"embedding"|"storage"|..., "message": str} dict.
+        Callers that want the detail (instead of just True/False) can read
+        `rag_service.last_ingest_error` immediately after calling this.
+        """
+        self.last_ingest_error = None
+
         # 1. Parse raw text
         text = self._parse_document(file_path)
         if not text:
             logger.warning(f"No text extracted from document: {filename}")
+            self.last_ingest_error = {"error_type": "parsing_failed", "message": "No text could be extracted from the document (empty, corrupted, or unsupported format)"}
             return False
 
         try:
@@ -230,12 +242,18 @@ class RAGService:
             # 2. Split into overlapping chunks
             chunks = self._chunk_text(text)
             if not chunks:
+                self.last_ingest_error = {"error_type": "chunking_failed", "message": "Document produced zero chunks after splitting"}
                 return False
 
             # 3. Batch Generate Vertex Embeddings in a single, secure HTTP/REST request!
             logger.info(f"Generating Vertex embeddings for {len(chunks)} chunks in a single secure batch request...")
-            vectors = self._generate_embeddings_batch(chunks)
+            try:
+                vectors = self._generate_embeddings_batch(chunks)
+            except Exception as embed_exc:
+                self.last_ingest_error = {"error_type": "embedding_failed", "message": f"Vertex AI embedding call failed: {embed_exc}"}
+                raise
             if len(vectors) != len(chunks):
+                self.last_ingest_error = {"error_type": "embedding_failed", "message": "Batch embeddings generation mismatch: vectors count does not match chunks count"}
                 raise ValueError("Batch embeddings generation mismatch: vectors count does not match chunks count.")
 
             # --- SQLite RAW DOCUMENT STORE SAVE (ADR-004 Parent-Document Store) ---
@@ -287,11 +305,13 @@ class RAGService:
                     return True
                 except Exception as pg_err:
                     logger.error(f"Failed to batch load vectors into PostgreSQL Cloud SQL: {pg_err}")
+                    self.last_ingest_error = {"error_type": "storage_failed", "message": f"PostgreSQL/pgvector write failed: {pg_err}"}
                     return False
             else:
                 # 4. Standard Local ChromaDB Indexing Loop
                 if not self.collection:
                     logger.warning("RAG Database is offline, cannot ingest document.")
+                    self.last_ingest_error = {"error_type": "storage_unavailable", "message": "Local ChromaDB collection is offline"}
                     return False
 
                 documents = []
@@ -322,6 +342,13 @@ class RAGService:
 
         except Exception as e:
             logger.error(f"Failed to ingest document [{filename}] into RAG: {e}")
+            if not self.last_ingest_error:
+                # Only set a generic fallback if a more specific error_type wasn't
+                # already classified above (e.g. embedding_failed re-raised into here)
+                if "RESTRICTED_DATA_VIOLATION" in str(e):
+                    self.last_ingest_error = {"error_type": "security_blocked", "message": "Document contains sensitive data and was blocked by the DLP guardrail"}
+                else:
+                    self.last_ingest_error = {"error_type": "internal_error", "message": str(e)}
             return False
 
     def query_knowledge_base(self, query: str, top_k: int = 3, original_query: str = None) -> list:

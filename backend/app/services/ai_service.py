@@ -696,10 +696,14 @@ class AIService:
             from app.services.rag_service import rag_service
 
             # Query ChromaDB (now strictly for INTERNAL and BOTH routes only!)
+            # (Issue #13 fix: give the user visibility into this step instead of
+            # a silent gap between "Analyzing intent..." and "Synthesizing...")
+            send_status("Querying internal knowledge base (Confluence + ADO)...")
             try:
                 rag_results = rag_service.query_knowledge_base(search_query, top_k=settings.RAG_TOP_K, original_query=text_input)
                 if not rag_results:
                     rag_results = []
+                send_status(f"Retrieved {len(rag_results)} relevant document chunk(s). Assembling context...")
             except Exception as db_err:
                 logger.error(f"Failed to query ChromaDB: {db_err}")
                 rag_results = []
@@ -864,13 +868,35 @@ class AIService:
         except Exception as e:
             # Proper log recording inside backend logs/app.log file (full stack trace logged!)
             logger.exception("AI Neural Error encountered during query processing")
-            
+
             # Refined, Generic, Elite fallbacks to prevent raw tracebacks from leaking to HUD
-            return (
+            fallback_reply = (
                 "I apologize, Administrator. I encountered an unexpected neural connectivity issue "
                 "while processing your request. Please try again shortly, or inspect the local "
                 "diagnostic logs inside the backend logs directory."
             )
+
+            # CRITICAL FIX (2026-10-22): this return value is discarded by the WebSocket
+            # handler (websockets.py calls process_text via run_in_executor and never
+            # reads the result). Without sending the frames below, the frontend never
+            # receives a 'streaming_complete' frame and stays stuck in
+            # THINKING/STREAMING forever on ANY backend exception - the only way out
+            # was the soft-cancel button. Now we push the fallback text + completion
+            # frame here too, so the UI always recovers on its own.
+            try:
+                send_json_frame("message_start")
+                send_json_frame("text_chunk", text_content=fallback_reply)
+                send_json_frame("streaming_complete")
+            except Exception as notify_err:
+                logger.warning(f"Failed to notify frontend of AI processing error: {notify_err}")
+
+            try:
+                db_service.save_message("ADMIN", text_input, "Administrator", session_id=session_id)
+                db_service.save_message("VISION", fallback_reply, "Administrator", session_id=session_id)
+            except Exception as save_err:
+                logger.warning(f"Failed to archive fallback error exchange: {save_err}")
+
+            return fallback_reply
 
     def _extract_tokens(self, response, accumulated_in=0, accumulated_out=0) -> tuple:
         """
