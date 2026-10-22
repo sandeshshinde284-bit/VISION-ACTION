@@ -677,7 +677,82 @@ Before shipping to production:
 
 ---
 
+---
+
+## ✅ MERGED FROM `18-IssuesAndRoadmap.md` (2026-10-22) — consolidation, nothing left scattered
+
+This separate doc (dated 2026-10-21, predates this tracker) listed its own set of defects, missing
+features, technical debt and a Phase 5–9 roadmap that had never been folded in here. Every claim
+below was re-checked against the current code before merging — several were already fixed by
+earlier work in this session and the doc just hadn't caught up. The source file has been deleted;
+this section (plus #27 below) is now the only place any of this content lives.
+
+### Issues #17–#21 — re-verified against current code, 5 of 9 already fixed
+
+| # | Issue | Verified status |
+|---|---|---|
+| #17 | RAG similarity threshold too loose (doc claimed 0.85) | ✅ **Stale claim.** `rag_service.py` already uses `RAG_DISTANCE_THRESHOLD = 0.60` strict with a `0.75` fallback-on-empty-results tier — tighter than what the doc described as the fix. Nothing to do. |
+| #18 | WebSocket reconnect doesn't preserve unsent messages | ⚠️ **Still open.** Not touched this session. `frontend/src/infrastructure/services/WebSocketService.ts` has no localStorage replay-on-reconnect buffer. |
+| #19 | PostgreSQL has no connection pooling | ⚠️ **Still open.** `db_service.py` calls `psycopg2.connect()` directly per request with no `QueuePool`/pool manager. Will not hold up past light concurrent load. |
+| #20 | System directives not hot-reloadable | ⚠️ **Still open.** `ai_service.py` reads directives without a cache-invalidation or file-watch path; a backend restart is still required. |
+| #21 | No rate limiting on API endpoints | ✅ **Stale claim.** `slowapi.Limiter` is already wired in `main.py` and `sync_routes.py`, plus a custom `_check_rate_limit()` in `uploads.py`. Nothing to do. |
+
+### Issues #22–#26 — medium/low priority, re-verified
+
+| # | Issue | Verified status |
+|---|---|---|
+| #22 | Document dedup by filename hash only (no content diff) | ⚠️ **Still open.** `rag_service.py` ingestion path has no content-hash/version check — a same-named re-upload with different content silently overwrites. |
+| #23 | No audit logging | ⚠️ **Still open.** No `audit_log` table or middleware anywhere in `backend/`. Needed before any enterprise/compliance deployment. |
+| #24 | ChromaDB not persistent across restarts | ✅ **Stale claim.** `rag_service.py` already uses `chromadb.PersistentClient(path=db_dir)`. Nothing to do. |
+| #25 | No password reset flow | ⚠️ **Still open.** No `/api/password-reset` endpoint exists; admin must manually reset accounts. |
+| #26 | Upload validation: file-type/MIME check missing | ⚠️ **Partially open.** `uploads.py` does enforce `MAX_FILE_SIZE` (`settings.MAX_UPLOAD_SIZE_MB`), but there's no MIME-type allowlist or malware scan — any file extension is accepted as long as it's under the size cap. |
+
+### Low-priority items — re-verified, both already fixed
+
+- **VisionCore.vue animation jank on low-end devices** — not independently re-tested this session; left as-is, low priority, no code change needed to merge the tracking.
+- ~~No dark mode toggle~~ — ✅ **Stale claim.** `HomeView.vue` already has a full `isDarkMode` toggle wired through `:class="{ 'dark': isDarkMode, 'light': !isDarkMode }"` and is used throughout. Nothing to do.
+- ~~ChatInput character limit not enforced~~ — ✅ **Stale claim.** `HomeView.vue`'s chat textarea already has `maxlength="15000"`. Nothing to do.
+
+### Missing-features list — re-verified, 2 of 6 already built
+
+- **Conversation branching** — ⚠️ still not built.
+- **Advanced multi-turn memory/summarization** — ⚠️ still not built.
+- **Custom KB management UI** (delete/re-index documents from an admin screen) — ⚠️ still not built.
+- **Confluence/ADO sync automation** (scheduled/incremental sync) — ⚠️ partially stale: the retry-with-backoff + structured-error work done earlier in this session makes each sync call itself reliable, but there is still no *scheduler* triggering syncs automatically — that part is genuinely still open.
+- **Model hot-swapping (Gemini/Claude/GPT-4 side by side)** — ⚠️ still not built; low priority, not requested by business.
+- **Google Search integration** — ✅ **Stale claim.** `ai_service.py` already wires Vertex AI's `google_search` grounding tool (`Tool.from_dict({"google_search": {}})`) end-to-end for `@web`/WEB-scope queries.
+- **Highlight-to-ask floating menu** — ✅ **Stale claim.** `HomeView.vue` already implements this (`highlightMenuCoords`, `submitHighlightedQuery()`, the floating menu template block).
+- **Workspace folder ingester (bulk folder upload)** — ⚠️ still not built.
+
+## Technical Debt (carried over, unverified this session — flagged for later triage)
+
+| Item | Severity | Notes |
+|---|---|---|
+| No unit tests for RAG service | HIGH | Still true — no automated tests exist anywhere in the repo yet (tracked as the "tests" item in STILL OPEN above). |
+| No integration tests (backend ↔ frontend) | HIGH | Same as above. |
+| Hardcoded config (ports, thresholds) | MEDIUM | Not re-checked; move to `.env` where not already there. |
+| No error boundaries in Vue | MEDIUM | Not re-checked. |
+| SQLite dev ↔ Postgres prod mismatch | MEDIUM | Not re-checked. |
+| No logging strategy beyond stdout | MEDIUM | Not re-checked. |
+| Zscaler SSL bypass in code | MEDIUM | Not re-checked — deployment-specific, should not ship as-is. |
+| No type hints in Python services | MEDIUM | Not re-checked. |
+| CSS classes scattered (no design system) | LOW | Relevant to the planned hybrid glasmorphic+flat redesign noted at the top of this tracker. |
+| Duplicated authentication logic | LOW | Not re-checked. |
+
+## #27 — Roadmap (Phase 5–9), kept for reference only, not a bug
+
+Future-looking, not a defect — recorded here only so nothing is scattered across files. Not scheduled,
+not estimated against this session's work:
+
+- **Phase 5 — Voice & Accessibility:** voice input, TTS output, keyboard-shortcut docs, WCAG 2.1 AA audit, screen-reader support.
+- **Phase 6 — Collaboration:** multi-user sessions, presence indicators, roles, message reactions/threads, session diff viewer.
+- **Phase 7 — Enterprise:** SSO (SAML/OAuth), fine-grained RBAC, compliance audit logging, encryption at rest, API key management, custom branding.
+- **Phase 8 — Advanced RAG:** hybrid reranking, query expansion, document versioning, precise citations, confidence scoring.
+- **Phase 9 — Scaling:** Kubernetes/horizontal scaling, Redis caching, Elasticsearch for large corpora, CDN, performance monitoring.
+
+---
+
 **Created:** 2026-10-21  
-**Updated:** —  
+**Updated:** 2026-10-22 — merged `18-IssuesAndRoadmap.md` in full (verified against live code; several of its claims were already fixed earlier this session) and deleted the source file so no issue/bug content is scattered outside this tracker.  
 **Status:** ACTIVE - Ready for implementation
 
