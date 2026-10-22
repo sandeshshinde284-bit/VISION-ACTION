@@ -62,7 +62,7 @@ Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS** (+ 1 newly discovered c
 
 ---
 
-#### ISSUE #14: Chat History Order Reversed When Switching Sessions
+#### ISSUE #14: Chat History Order Reversed When Switching Sessions — ❌ STILL OPEN (not touched in this pass)
 - **Location:** `backend/app/api/websockets.py:83`, `backend/app/services/db_service.py`
 - **Severity:** 🔴 CRITICAL
 - **Description:** Messages appear in reverse chronological order when user switches sessions
@@ -83,80 +83,82 @@ Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS** (+ 1 newly discovered c
 
 ---
 
-#### ISSUE #7: "Vision is Thinking" State Never Ends
+#### ISSUE #7: "Vision is Thinking" State Never Ends — ✅ FIXED
 - **Location:** `frontend/src/components/3-organisms/SystemLog.vue` (lines 131-161)
 - **Severity:** 🔴 CRITICAL
 - **Description:** Bouncing dots keep bouncing even after response arrives
 - **Problem:** User thinks Vision is still processing even though response is visible
-- **Fix Needed:** Proper state cleanup when aiState changes
+- **Fix Applied:** `watch(aiState)` now clears the interval/history/elapsed timer in its `else` branch, plus `onUnmounted` cleanup.
 - **Impact:** 🔴 Chat UX completely broken — user confusion
 - **Effort:** 2 hours
 
 ---
 
-#### ISSUE #8: No Feedback During Token Streaming
-- **Location:** `frontend/src/views/HomeView.vue`, `backend/app/api/websockets.py`
+#### ISSUE #8: No Feedback During Token Streaming — ✅ FIXED (2026-10-22)
+- **Location:** `frontend/src/views/HomeView.vue`, `frontend/src/composables/useWebSocket.ts`, `frontend/src/components/3-organisms/SystemLog.vue`
 - **Severity:** 🔴 CRITICAL
 - **Description:** User can't tell if Vision is thinking or response is arriving
 - **Problem:** Gap between "thinking" and "response visible"
-- **Fix Needed:** STREAMING state showing "📨 V.I.S.I.O.N. is responding..."
+- **Fix Applied:** `aiState` flips to `'STREAMING'` the instant the first `text_chunk` frame (or legacy chunk) arrives; `SystemLog.vue` shows "📨 V.I.S.I.O.N. is responding..." for that state.
 - **Impact:** 🔴 Chat feels broken — response appears suddenly with no warning
 - **Effort:** 2 hours
 
 ---
 
-#### ISSUE #9: Timeout Warning Has No Cancel Button
-- **Location:** `frontend/src/components/3-organisms/SystemLog.vue` (line 157-160)
+#### ISSUE #9: Timeout Warning Has No Cancel Button — ✅ FIXED (2026-10-22, soft cancel)
+- **Location:** `frontend/src/components/3-organisms/SystemLog.vue` (line 157-160), `frontend/src/composables/useWebSocket.ts`
 - **Severity:** 🔴 CRITICAL
 - **Description:** Shows "Taking longer than usual..." but user can't cancel
 - **Problem:** User is stuck waiting, no way to stop stuck chat request
-- **Fix Needed:** Add "❌ Cancel Request" button
+- **Fix Applied:** "❌ Cancel" button added, calls `cancelRequest()` which resets the UI to STANDBY and discards the in-flight response.
+- **⚠️ Known limitation:** This is a **soft cancel** — the backend thread processing the request keeps running (no cooperative cancellation hook exists in `ai_service.process_text`). A true hard-cancel is still open (see below).
 - **Impact:** 🔴 Chat becomes unresponsive — user trapped
-- **Effort:** 2 hours
+- **Effort:** 2 hours (soft cancel); +3-4h for hard cancel
 
 ---
 
-#### ISSUE #10: Status History Not Reset Between Chat Queries
+#### ISSUE #10: Status History Not Reset Between Chat Queries — ✅ FIXED
 - **Location:** `frontend/src/components/3-organisms/SystemLog.vue` (line 185)
 - **Severity:** 🔴 CRITICAL
 - **Description:** Shows old processing steps from previous queries
 - **Problem:** Confusing — mixes old + new status in same chat
-- **Fix Needed:** Clear history when aiState changes to THINKING
+- **Fix Applied:** `statusHistory.value = []` runs at the top of the `'THINKING'` branch in the `watch(aiState)` handler.
 - **Impact:** 🔴 Chat confusing — user sees mixed status from old queries
 - **Effort:** 1 hour
 
 ---
 
-#### ISSUE #11: Timer Interval Causes Memory Leak in Chat
+#### ISSUE #11: Timer Interval Causes Memory Leak in Chat — ✅ FIXED
 - **Location:** `frontend/src/components/3-organisms/SystemLog.vue` (lines 188-196)
 - **Severity:** 🔴 CRITICAL
 - **Description:** Timer keeps running after response arrives
 - **Problem:** Multiple queries = multiple timers running = performance degrades
-- **Fix Needed:** Cleanup interval in watch + onUnmounted
+- **Fix Applied:** `cleanupThinkingInterval()` called before starting a new interval and in the `else`/`onUnmounted` branches.
 - **Impact:** 🔴 Chat becomes sluggish over time — performance issue
 - **Effort:** 1 hour
 
 ---
 
-#### ISSUE #12: Missing STREAMING State in Chat State Machine
-- **Location:** `frontend/src/views/HomeView.vue`
+#### ISSUE #12: Missing STREAMING State in Chat State Machine — ✅ FIXED (2026-10-22)
+- **Location:** `frontend/src/views/HomeView.vue`, `frontend/src/composables/useWebSocket.ts`
 - **Severity:** 🔴 CRITICAL
 - **Description:** State machine incomplete (STANDBY → THINKING → ??? → Response)
 - **Problem:** Gap in state transitions during chat response arrival
-- **Fix Needed:** Add STREAMING state between THINKING and SPEAKING
+- **Fix Applied:** `aiState` type widened to `'STANDBY' | 'THINKING' | 'STREAMING' | 'SPEAKING'`; all comparisons (`isGenerating`, the stop/cancel button, SystemLog prop type) updated to include it.
 - **Impact:** 🔴 Chat state unclear — can't show streaming feedback
 - **Effort:** 1 hour
 
 ---
 
-#### ISSUE #5: No Frontend Feedback on Chat Sync Status
-- **Location:** `frontend/src/views/HomeView.vue`, `backend/app/api/sync_routes.py`
+#### ISSUE #5: No Frontend Feedback on Chat Sync Status — ⚠️ PARTIALLY FIXED
+- **Location:** `frontend/src/views/HomeView.vue`, `backend/app/api/sync_routes.py`, `backend/sync_connectors.py`
 - **Severity:** 🔴 CRITICAL
 - **Description:** User triggers sync (for chat knowledge) but gets NO feedback
 - **Problem:** User doesn't know if chat knowledge base synced or why sync failed
-- **Fix Needed:** WebSocket callback with sync completion + error details
+- **Fix Applied (2026-10-22):** Every sync failure is now recorded with a classified `error_type` + message in `sync_log` (queryable via `GET /api/sync/status`) instead of being swallowed.
+- **❌ Still missing:** No *proactive* WebSocket push when a sync completes — the frontend would need to poll `/api/sync/status`, there's no live notification and no UI panel consuming it yet. Est. 2-3h for the push + a small status panel.
 - **Impact:** 🔴 Chat knowledge hidden — user can't see what docs are synced
-- **Effort:** 6 hours
+- **Effort:** 6 hours (2h done, 4h remaining)
 
 ---
 
@@ -168,7 +170,7 @@ Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS** (+ 1 newly discovered c
 
 ---
 
-#### ISSUE #1: Confluence Sync Fails Silently
+#### ISSUE #1: Confluence Sync Fails Silently — ✅ FIXED (2026-10-22)
 - **Location:** `backend/sync_connectors.py:sync_confluence_page()`
 - **Severity:** 🔴 CRITICAL
 - **Description:** When Confluence API fails, returns `False` with NO details
@@ -184,7 +186,7 @@ Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS** (+ 1 newly discovered c
 
 ---
 
-#### ISSUE #2: ADO Sync Fails Silently
+#### ISSUE #2: ADO Sync Fails Silently — ✅ FIXED (2026-10-22)
 - **Location:** `backend/sync_connectors.py:sync_ado_workitem()`
 - **Severity:** 🔴 CRITICAL
 - **Description:** Same as Issue #1 but for Azure DevOps
@@ -195,7 +197,7 @@ Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS** (+ 1 newly discovered c
 
 ---
 
-#### ISSUE #3: No Retry Logic for Transient Errors
+#### ISSUE #3: No Retry Logic for Transient Errors — ✅ FIXED (2026-10-22)
 - **Location:** `backend/sync_connectors.py` (all sync functions)
 - **Severity:** 🔴 CRITICAL
 - **Description:** Network blips cause permanent data loss
@@ -212,8 +214,9 @@ Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS** (+ 1 newly discovered c
 
 ---
 
-#### ISSUE #4: RAG Ingestion Failures Have No Error Details
+#### ISSUE #4: RAG Ingestion Failures Have No Error Details — ⚠️ PARTIALLY FIXED
 - **Location:** `backend/app/services/rag_service.py:ingest_document()`
+- **Note (2026-10-22):** The *callers* (`sync_confluence_page`, `sync_ado_workitem`) now record a classified error when `ingest_document()` returns `False`. `ingest_document()` itself still returns a plain `True|False` and does not yet distinguish parsing vs. embedding vs. storage failure internally — that refactor (inside `rag_service.py`) was not done in this pass.
 - **Severity:** 🔴 CRITICAL
 - **Description:** Returns `True|False` with no info about what failed
 - **Current Behavior:**
@@ -236,7 +239,7 @@ Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS** (+ 1 newly discovered c
 
 ---
 
-#### ISSUE #5: No Frontend Feedback on Sync Status
+#### ISSUE #5: No Frontend Feedback on Sync Status — ⚠️ PARTIALLY FIXED (see duplicate entry above)
 - **Location:** `frontend/src/views/HomeView.vue`, `backend/app/api/sync_routes.py`
 - **Severity:** 🔴 CRITICAL
 - **Description:** User triggers sync but gets NO feedback on result
@@ -255,8 +258,9 @@ Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS** (+ 1 newly discovered c
 
 ---
 
-#### ISSUE #6: No Error Type Classification System
+#### ISSUE #6: No Error Type Classification System — ⚠️ PARTIALLY FIXED
 - **Location:** Entire application
+- **Note (2026-10-22):** `classify_sync_error()` in `sync_connectors.py` now covers network/auth/rate-limit/5xx classification for Confluence + ADO sync specifically. This is a function, not an application-wide `ErrorType` enum, and it has not been applied to RAG ingestion internals, web search, or any other integration point — those still have no classification.
 - **Severity:** 🔴 CRITICAL
 - **Description:** All errors treated the same (no differentiation)
 - **Missing Error Types:**
@@ -278,7 +282,7 @@ Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS** (+ 1 newly discovered c
 
 ---
 
-#### ISSUE #7: "Vision is Thinking" State Never Ends
+#### ISSUE #7: "Vision is Thinking" State Never Ends — ✅ FIXED (see duplicate entry above)
 - **Location:** `frontend/src/components/3-organisms/SystemLog.vue` (lines 131-161)
 - **Severity:** 🔴 CRITICAL
 - **Description:** Bouncing dots keep bouncing even after response arrives
@@ -299,7 +303,7 @@ Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS** (+ 1 newly discovered c
 
 ---
 
-#### ISSUE #8: No Feedback During Token Streaming
+#### ISSUE #8: No Feedback During Token Streaming — ✅ FIXED (see duplicate entry above)
 - **Location:** `frontend/src/views/HomeView.vue`, `backend/app/api/websockets.py`
 - **Severity:** 🔴 CRITICAL
 - **Description:** User can't tell if Vision is still thinking or response is arriving
@@ -315,7 +319,7 @@ Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS** (+ 1 newly discovered c
 
 ---
 
-#### ISSUE #9: Timeout Warning Has No Cancel Button
+#### ISSUE #9: Timeout Warning Has No Cancel Button — ✅ FIXED, soft cancel only (see duplicate entry above)
 - **Location:** `frontend/src/components/3-organisms/SystemLog.vue` (line 157-160)
 - **Severity:** 🔴 CRITICAL
 - **Description:** Shows "Taking longer than usual..." but user can't cancel
@@ -332,7 +336,7 @@ Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS** (+ 1 newly discovered c
 
 ---
 
-#### ISSUE #10: Status History Not Reset Between Queries
+#### ISSUE #10: Status History Not Reset Between Queries — ✅ FIXED (see duplicate entry above)
 - **Location:** `frontend/src/components/3-organisms/SystemLog.vue` (line 185)
 - **Severity:** 🔴 CRITICAL
 - **Description:** Shows old processing steps from previous queries
@@ -354,7 +358,7 @@ Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS** (+ 1 newly discovered c
 
 ---
 
-#### ISSUE #11: Timer Interval Causes Memory Leak
+#### ISSUE #11: Timer Interval Causes Memory Leak — ✅ FIXED (see duplicate entry above)
 - **Location:** `frontend/src/components/3-organisms/SystemLog.vue` (lines 188-196)
 - **Severity:** 🔴 CRITICAL
 - **Description:** Interval keeps running after response arrives
@@ -378,7 +382,7 @@ Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS** (+ 1 newly discovered c
 
 ---
 
-#### ISSUE #12: Missing STREAMING State
+#### ISSUE #12: Missing STREAMING State — ✅ FIXED (see duplicate entry above)
 - **Location:** `frontend/src/views/HomeView.vue` (define aiState type)
 - **Severity:** 🔴 CRITICAL
 - **Description:** State machine incomplete (STANDBY → THINKING → ??? → Response)
@@ -389,7 +393,7 @@ Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS** (+ 1 newly discovered c
 
 ---
 
-#### ISSUE #13: No Real-time Processing Status Updates
+#### ISSUE #13: No Real-time Processing Status Updates — ❌ STILL OPEN (not touched in this pass)
 - **Location:** `backend/app/api/websockets.py`, `frontend/src/components/3-organisms/SystemLog.vue`
 - **Severity:** 🔴 CRITICAL
 - **Description:** User doesn't see what's happening in backend during processing
@@ -445,7 +449,7 @@ Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS** (+ 1 newly discovered c
 
 ---
 
-#### ISSUE #14: Chat History Order Reversed When Switching Sessions
+#### ISSUE #14: Chat History Order Reversed When Switching Sessions — ❌ STILL OPEN (see duplicate entry above)
 - **Location:** `backend/app/api/websockets.py:83`, `backend/app/services/db_service.py:get_chat_history_for_session()`
 - **Severity:** 🔴 CRITICAL
 - **Description:** Chat messages appear in reverse chronological order when user switches sessions
@@ -523,7 +527,7 @@ Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS** (+ 1 newly discovered c
 
 ---
 
-#### ISSUE #15: Web Search UI Completely Missing
+#### ISSUE #15: Web Search UI Completely Missing — ❌ STILL OPEN (not touched in this pass)
 - **Location:** `frontend/src/views/HomeView.vue`, `frontend/src/components/`
 - **Severity:** 🔴 CRITICAL
 - **Description:** Backend has @web/@internal/@both routing but NO UI
@@ -543,7 +547,7 @@ Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS** (+ 1 newly discovered c
 
 ---
 
-#### ISSUE #16: No Sync Status Dashboard
+#### ISSUE #16: No Sync Status Dashboard — ❌ STILL OPEN (not touched in this pass; backend data for it now exists via `/api/sync/status`)
 - **Location:** `frontend/src/views/HomeView.vue`
 - **Severity:** 🔴 CRITICAL
 - **Description:** User has NO visibility into sync status
