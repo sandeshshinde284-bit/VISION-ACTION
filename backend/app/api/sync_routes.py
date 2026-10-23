@@ -24,7 +24,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/sync", tags=["Sync Management"])
 
 # Initialize Rate Limiter for Sync Endpoints ---
-limiter = Limiter(key_func=get_remote_address)
+# Same fix as app/main.py (ISSUES-TRACKER #29): avoid slowapi's implicit .env auto-read, which
+# uses the platform-default text encoding and crashes on Windows if the .env has any non-cp1252 byte.
+limiter = Limiter(key_func=get_remote_address, config_filename=os.devnull)
 
 # ============================================================================
 # Session Token Verification Helper

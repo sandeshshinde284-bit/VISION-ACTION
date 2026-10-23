@@ -8,7 +8,7 @@
 
 ## SUMMARY
 
-Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS** (+ 1 newly discovered crash, now fixed)
+Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS** (+ 12 discovered along the way — 3 sync/chat crashes, 2 Windows startup crashes, and 7 from the separate `18-IssuesAndRoadmap.md` merge — all logged below, none scattered)
 
 | Priority | Category | Count | Status |
 |----------|----------|-------|--------|
@@ -41,6 +41,17 @@ Total Issues Found: **16 CRITICAL + HIGH PRIORITY BUGS** (+ 1 newly discovered c
 - **Issue #6 (error type classification) — expanded:** `classify_sync_error()` now also detects `dns_resolution_failed`, `proxy_error` (exception + HTTP 407), `mfa_required` (403 + body sniff), `document_archived` (410), `file_too_large` (413), `document_locked` (423), and `quota_exceeded` (429 + body sniff). Still not a full app-wide enum, and still sync-specific (not applied to web search).
 - **Issue #15 (web search UI "completely missing") — CORRECTED, this claim was stale/wrong.** Traced the code: `HomeView.vue` already has working AUTO/INTERNAL/WEB/BOTH scope chips (lines ~569-598) wired to `activeScope`, which prefixes outgoing messages with `[SCOPE: ...]`, parsed by `ai_service.py:347` and routed accordingly. This has existed since before this audit pass — the original `VISION-ERROR-HANDLING-AUDIT.md` claim was simply inaccurate. **No fix needed; nothing was open here.**
 - **Issue #16 (no sync status dashboard) — now fixed, plus a blocking bug found underneath it:** The backend (`sync_status.py` → `/api/sync-status/summary`) already existed but was **completely unreachable for everyone**: `require_admin()` called `security_service.is_admin()`, a method that doesn't exist anywhere in the codebase, so `hasattr(...)` was always `False` and the endpoint always returned 403 regardless of caller. Fixed by switching to the same session-token check `sync_routes.py` already uses. Built the missing frontend half: `SyncStatusPanel.vue` (new), toggled from a 🔄 button next to the connection badge in `HomeView.vue`, showing per-source health + the live notification feed from the fix above.
+
+## ✅ FIXED ON 2026-10-23 — found by actually running the app on Windows (not from reading code)
+
+Bhai ran `python run.py` on Windows and sent the real startup log. Two genuine, previously-undetected
+bugs surfaced that no amount of reading the diff would have caught — exactly why "nothing is working
+right until it's tested" matters. Both root-caused against the actual code and fixed.
+
+- **Issue #28 — `AttributeError: 'Settings' object has no attribute 'DEFAULT_ADMIN_NAME'` on every single startup.** `db_service.py` (schema-init path, "Auto-seeding default chat session") referenced `settings.DEFAULT_ADMIN_NAME`, but `config.py`'s `Settings` class only ever defined `DEFAULT_ADMIN_USERNAME` — `DEFAULT_ADMIN_NAME` never existed. Caught by a blanket `except Exception` and logged as a one-line ERROR ("Failed to initialize database schema"), so it never crashed the app but silently broke default-session seeding on literally every boot. Fixed: corrected the attribute name to `settings.DEFAULT_ADMIN_USERNAME`.
+- **Issue #29 — hard startup crash on Windows: `UnicodeDecodeError` in `slowapi`'s `Limiter()` while importing `app/main.py`.** Root cause: `slowapi.Limiter.__init__` auto-detects any `.env` file sitting in the current working directory and hands it to `starlette.Config()`, which — depending on the installed starlette/slowapi version — can read it using the **platform-default text encoding** (cp1252 on Windows) rather than UTF-8. Our own `pydantic_settings.Settings` already loads `.env` explicitly as UTF-8 (`env_file_encoding='utf-8'` in `config.py`), so this was a second, independent, undeclared `.env` read with no encoding control at all. The moment the user's `.env` contained a single non-cp1252 byte (e.g. a smart quote or em-dash pasted from Word/a browser into a comment or value), the backend crashed before FastAPI finished importing — 100% reproducible on Windows, invisible on Linux/Mac (default UTF-8 locale), and a full hard stop, not a logged warning. Fixed in both places `Limiter(...)` is constructed (`app/main.py` and `app/api/sync_routes.py`): pass `config_filename=os.devnull`, which skips slowapi's `.env` auto-detection entirely since we don't need or want it reading project env vars a second time.
+
+---
 
 ## ⚠️ STILL OPEN
 

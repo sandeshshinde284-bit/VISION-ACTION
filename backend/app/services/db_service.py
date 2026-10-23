@@ -359,7 +359,11 @@ class DatabaseService:
                 if cursor.fetchone()[0] == 0:
                     logger.info("Auto-seeding default chat session.")
                     p = "%s" if settings.DATABASE_TARGET == "CLOUD" else "?"
-                    cursor.execute(f"INSERT INTO chat_sessions (session_id, title, admin_name) VALUES ({p}, {p}, {p})", ("default_session", "Default Session", settings.DEFAULT_ADMIN_NAME or "admin"))
+                    # BUG FIX (2026-10-23): this referenced settings.DEFAULT_ADMIN_NAME, which does not
+                    # exist on Settings (the actual field is DEFAULT_ADMIN_USERNAME) - raised AttributeError
+                    # on every single startup, caught by the outer blanket except and logged as an ERROR,
+                    # silently breaking default-session seeding on every fresh DB init. See ISSUES-TRACKER #28.
+                    cursor.execute(f"INSERT INTO chat_sessions (session_id, title, admin_name) VALUES ({p}, {p}, {p})", ("default_session", "Default Session", settings.DEFAULT_ADMIN_USERNAME or "admin"))
 
                 # Create and seed the strict 'users' table schema
                 p = "%s" if settings.DATABASE_TARGET == "CLOUD" else "?"

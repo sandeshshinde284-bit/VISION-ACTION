@@ -47,7 +47,16 @@ from app.api import websockets, uploads
 from app.services.ai_service import ai_service
 
 # Initialize Rate Limiter ---
-limiter = Limiter(key_func=get_remote_address)
+# BUG FIX (2026-10-23): slowapi's Limiter.__init__ auto-detects any ".env" file sitting in the
+# current working directory and feeds it to starlette's Config(), which reads it with the
+# PLATFORM-DEFAULT text encoding (cp1252 on Windows, utf-8 on Linux/Mac) rather than the explicit
+# utf-8 our own pydantic Settings already uses. If a Windows .env contains so much as one
+# non-cp1252 byte (a smart quote, em-dash, etc. pasted from Word/a browser), this raises
+# UnicodeDecodeError and crashes the app before FastAPI even finishes importing - a hard,
+# 100%-reproducible startup failure that is invisible on Linux/Mac. We don't need slowapi reading
+# any .env at all (our own Settings already loads everything), so point it at a file that always
+# exists and is trivially empty, which skips the auto-detection path entirely. See ISSUES-TRACKER #29.
+limiter = Limiter(key_func=get_remote_address, config_filename=os.devnull)
 
 # create the FASTAPI app instance
 app = FastAPI(
