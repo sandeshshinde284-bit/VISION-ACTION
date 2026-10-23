@@ -24,6 +24,13 @@ google-cloud-aiplatform>=1.49.0
 # --- Configuration Management ---
 # For loading settings from environment variables and .env files into Pydantic models.
 pydantic-settings==2.2.1
+# Pinned explicitly (ISSUES-TRACKER #30): pydantic was previously an unpinned transitive dep, so
+# pip was free to resolve whatever newest pydantic v2.x existed at install time. schemas.py used
+# the old Field(regex=...) kwarg, which pydantic deprecated and later fully removed - so a fresh
+# install months apart could silently pick up a pydantic version that hard-crashes the app at
+# import time with "PydanticUserError: `regex` is removed. use `pattern` instead", even though
+# nothing in this repo changed. Pinning avoids this whole class of "worked yesterday" surprise.
+pydantic==2.9.2
 
 # --- .env File Loading ---
 # Dependency for pydantic-settings to read from .env files.
